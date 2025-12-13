@@ -36,6 +36,10 @@ target_include_directories(glad PUBLIC
 # Main executable
 add_executable(${PROJECT_NAME}
     src/main.cpp
+    src/VertexBuffer.cpp
+    src/IndexBuffer.cpp
+    src/VertexArray.cpp
+    src/Shader.cpp
 )
 
 # Link libraries
