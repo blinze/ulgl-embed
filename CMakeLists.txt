@@ -156,6 +156,18 @@ add_custom_command(TARGET Deploy POST_BUILD
     "${DEPLOY_DIR}/"
 )
 
+if(UNIX AND NOT APPLE)
+    add_custom_command(TARGET Deploy POST_BUILD
+        COMMAND chmod +x "${DEPLOY_DIR}/${PROJECT_NAME}"
+        COMMENT "Setting execute permissions on ${PROJECT_NAME}"
+    )
+elseif(APPLE)
+    add_custom_command(TARGET Deploy POST_BUILD
+        COMMAND chmod +x "${DEPLOY_DIR}/${PROJECT_NAME}"
+        COMMENT "Setting execute permissions on ${PROJECT_NAME}"
+    )
+endif()
+
 if(EXISTS "${CMAKE_SOURCE_DIR}/Assets")
     if(PYTHON_EXECUTABLE)
         add_custom_command(TARGET Deploy POST_BUILD
@@ -229,16 +241,23 @@ endif()
 
 if(CMAKE_SYSTEM_NAME MATCHES "Windows")
     set(EXECUTABLE_NAME "${PROJECT_NAME}.exe")
+    add_custom_target(Run
+        COMMAND ${CMAKE_COMMAND} -E echo "Running ${PROJECT_NAME} from deployment directory..."
+        COMMAND ${CMAKE_COMMAND} -E chdir "${DEPLOY_DIR}" "${EXECUTABLE_NAME}"
+        DEPENDS Deploy
+        COMMENT "Running ${PROJECT_NAME} from deployment directory (CMake will wait for the window to close)"
+        USES_TERMINAL
+    )
 else()
     set(EXECUTABLE_NAME "${PROJECT_NAME}")
+    add_custom_target(Run
+        COMMAND ${CMAKE_COMMAND} -E echo "Running ${PROJECT_NAME} from deployment directory..."
+        COMMAND ${CMAKE_COMMAND} -E chdir "${DEPLOY_DIR}" ./${EXECUTABLE_NAME}
+        DEPENDS Deploy
+        COMMENT "Running ${PROJECT_NAME} from deployment directory (CMake will wait for the window to close)"
+        USES_TERMINAL
+    )
 endif()
-
-add_custom_target(Run
-    COMMAND ${CMAKE_COMMAND} -E chdir "${DEPLOY_DIR}" "${EXECUTABLE_NAME}"
-    DEPENDS Deploy
-    COMMENT "Running ${PROJECT_NAME} from deployment directory"
-    USES_TERMINAL
-)
 
 add_custom_target(RunBin
     COMMAND ${CMAKE_COMMAND} -E echo "Running ${PROJECT_NAME} from bin directory..."
