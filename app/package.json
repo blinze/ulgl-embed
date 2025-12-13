@@ -1,0 +1,14 @@
+{
+  "name": "app",
+  "scripts": {
+    "build": "bun build src/main.jsx --outfile=bundle.js --minify"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "private": true,
+  "dependencies": {
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3"
+  }
+}
