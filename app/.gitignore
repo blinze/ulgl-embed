@@ -3,6 +3,7 @@ node_modules
 
 # output
 bundle.js
+styles.css
 out
 dist
 *.tgz
