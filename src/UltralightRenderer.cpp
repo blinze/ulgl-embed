@@ -1,5 +1,10 @@
 #include "UltralightRenderer.h"
 #include <iostream>
+#include <filesystem>
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 UltralightRenderer::UltralightRenderer()
     : m_Initialized(false)
@@ -42,16 +47,130 @@ bool UltralightRenderer::Initialize(uint32_t width, uint32_t height)
 
     try
     {
+        std::cout << "  Setting up Ultralight config..." << std::endl;
         ultralight::Config config;
         config.user_stylesheet = "";
 
+        std::cout << "  Setting platform config..." << std::endl;
         ultralight::Platform::instance().set_config(config);
+        
+        std::cout << "  Setting font loader..." << std::endl;
         ultralight::Platform::instance().set_font_loader(ultralight::GetPlatformFontLoader());
+        
+        std::cout << "  Setting file system..." << std::endl;
+        std::filesystem::path currentDir = std::filesystem::current_path();
+        std::cout << "    Current working directory: " << currentDir << std::endl;
+        
+        std::filesystem::path resourcesPath = currentDir / "resources";
+        if (std::filesystem::exists(resourcesPath))
+        {
+            std::cout << "    Resources folder found at: " << resourcesPath << std::endl;
+        }
+        else
+        {
+            std::cerr << "    WARNING: Resources folder not found at: " << resourcesPath << std::endl;
+            std::cerr << "    Ultralight may fail to initialize without resources!" << std::endl;
+        }
         ultralight::Platform::instance().set_file_system(ultralight::GetPlatformFileSystem("."));
+        
+        std::cout << "  Setting logger..." << std::endl;
         ultralight::Platform::instance().set_logger(ultralight::GetDefaultLogger("ultralight.log"));
+        std::cout << "    Logger will write to: ultralight.log (check this file for detailed errors)" << std::endl;
 
-        m_Renderer = ultralight::Renderer::Create();
+#ifdef _WIN32
+        std::cout << "  Checking for required DLLs..." << std::endl;
+        const char* requiredDLLs[] = {
+            "UltralightCore.dll",
+            "Ultralight.dll",
+            "WebCore.dll",
+            "AppCore.dll"
+        };
+        
+        bool allDLLsFound = true;
+        for (const char* dll : requiredDLLs)
+        {
+            HMODULE hModule = LoadLibraryA(dll);
+            if (hModule == nullptr)
+            {
+                DWORD error = GetLastError();
+                std::cerr << "    ERROR: " << dll << " failed to load (Error code: " << error << ")" << std::endl;
+                if (error == 126)
+                {
+                    std::cerr << "      This usually means a dependency is missing (like Visual C++ runtime)" << std::endl;
+                }
+                allDLLsFound = false;
+            }
+            else
+            {
+                std::cout << "    Successfully loaded: " << dll << std::endl;
+                FreeLibrary(hModule);
+            }
+        }
+        
+        if (!allDLLsFound)
+        {
+            std::cerr << "  CRITICAL: Some required DLLs failed to load!" << std::endl;
+            std::cerr << "  Make sure:" << std::endl;
+            std::cerr << "    1. All Ultralight DLLs are in the same directory as the executable" << std::endl;
+            std::cerr << "    2. Visual C++ Redistributable is installed" << std::endl;
+            std::cerr << "    3. DLL architecture (x64/x86) matches your build" << std::endl;
+            std::cerr << "  Continuing anyway, but Renderer::Create() will likely fail..." << std::endl;
+        }
+#endif
 
+        std::cout << "  Creating renderer..." << std::endl;
+        std::cout << "    Calling Renderer::Create()..." << std::endl;
+        std::cout << "    WARNING: If the program crashes here, check:" << std::endl;
+        std::cout << "      1. ultralight.log file in the working directory" << std::endl;
+#ifdef _WIN32
+        std::cout << "      2. Windows Event Viewer for crash details" << std::endl;
+        std::cout << "      3. Visual C++ Redistributable is installed" << std::endl;
+        std::cout << "      4. DLL architecture (x64) matches your build" << std::endl;
+#else
+        std::cout << "      2. System logs for crash details" << std::endl;
+        std::cout << "      3. Required shared libraries are installed" << std::endl;
+        std::cout << "      4. Library architecture matches your build" << std::endl;
+#endif
+        
+        std::cout.flush();
+        std::cerr.flush();
+        
+        try
+        {
+            m_Renderer = ultralight::Renderer::Create();
+            std::cout << "    Renderer::Create() returned successfully!" << std::endl;
+        }
+        catch (const std::exception& e)
+        {
+            std::cerr << "    EXCEPTION in Renderer::Create(): " << e.what() << std::endl;
+            std::cerr.flush();
+            return false;
+        }
+        catch (...)
+        {
+            std::cerr << "    UNKNOWN EXCEPTION in Renderer::Create()!" << std::endl;
+            std::cerr.flush();
+            return false;
+        }
+        
+        if (!m_Renderer)
+        {
+            std::cerr << "  Failed to create Ultralight renderer (returned nullptr)!" << std::endl;
+            std::cerr << "  This usually means:" << std::endl;
+#ifdef _WIN32
+            std::cerr << "    1. Missing Ultralight DLLs in the executable directory" << std::endl;
+            std::cerr << "    2. Missing resources folder" << std::endl;
+            std::cerr << "    3. Missing Visual C++ runtime dependencies" << std::endl;
+#else
+            std::cerr << "    1. Missing Ultralight shared libraries in the executable directory" << std::endl;
+            std::cerr << "    2. Missing resources folder" << std::endl;
+            std::cerr << "    3. Missing required system dependencies" << std::endl;
+#endif
+            return false;
+        }
+        std::cout << "    Renderer created successfully!" << std::endl;
+
+        std::cout << "  Configuring view..." << std::endl;
         ultralight::ViewConfig view_config;
         view_config.is_accelerated = false;
         view_config.initial_device_scale = 1.0;
@@ -61,14 +180,26 @@ bool UltralightRenderer::Initialize(uint32_t width, uint32_t height)
         view_config.font_family_sans_serif = "Arial";
         view_config.font_family_fixed = "Courier New";
 
+        std::cout << "  Creating view..." << std::endl;
         m_View = m_Renderer->CreateView(width, height, view_config, nullptr);
+        if (!m_View)
+        {
+            std::cerr << "  Failed to create Ultralight view!" << std::endl;
+            return false;
+        }
 
         m_Initialized = true;
+        std::cout << "  Ultralight initialization complete!" << std::endl;
         return true;
     }
     catch (const std::exception& e)
     {
         std::cerr << "Failed to initialize Ultralight: " << e.what() << std::endl;
+        return false;
+    }
+    catch (...)
+    {
+        std::cerr << "Failed to initialize Ultralight: Unknown exception!" << std::endl;
         return false;
     }
 }
@@ -96,7 +227,6 @@ void UltralightRenderer::Render()
     if (!m_Initialized || !m_Renderer || !m_View)
         return;
 
-    // Render all active views (RefreshDisplay doesn't exist in this API version)
     m_Renderer->Render();
 }
 

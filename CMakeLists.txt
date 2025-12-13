@@ -5,12 +5,12 @@ project(ULGL-Embed VERSION 1.0.0 LANGUAGES CXX C)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Set output directories
+find_program(PYTHON_EXECUTABLE python python3)
+
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
-# GLFW Configuration - Build as static library
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
@@ -18,10 +18,8 @@ set(GLFW_INSTALL OFF CACHE BOOL "" FORCE)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 set(GLFW_LIBRARY_TYPE STATIC CACHE STRING "" FORCE)
 
-# Add GLFW subdirectory
 add_subdirectory(${CMAKE_SOURCE_DIR}/Vendor/glfw)
 
-# GLAD - Static library
 set(GLAD_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/Vendor/glad/include)
 set(GLAD_SRC_DIR ${CMAKE_SOURCE_DIR}/Vendor/glad/src)
 
@@ -33,10 +31,6 @@ target_include_directories(glad PUBLIC
     ${GLAD_INCLUDE_DIR}
 )
 
-# Ultralight SDK Configuration
-# Set ULTRALIGHT_SDK_PATH to point to your Ultralight SDK directory
-# You can download it from https://ultralig.ht
-# Check multiple possible locations
 set(ULTRALIGHT_SDK_PATH "${CMAKE_SOURCE_DIR}/Vendor/Ultralight" CACHE PATH "Path to Ultralight SDK")
 
 if(EXISTS "${ULTRALIGHT_SDK_PATH}/include")
@@ -55,7 +49,6 @@ if(EXISTS "${ULTRALIGHT_SDK_PATH}/include")
         set(ULTRALIGHT_LIBRARY_DIR "${ULTRALIGHT_SDK_PATH}/bin")
     endif()
     
-    # Add Ultralight include directories
     include_directories("${ULTRALIGHT_INCLUDE_DIR}")
     link_directories("${ULTRALIGHT_LIBRARY_DIR}")
     
@@ -68,29 +61,26 @@ else()
     set(ULTRALIGHT_FOUND FALSE)
 endif()
 
-# Main executable
 add_executable(${PROJECT_NAME}
     src/main.cpp
     src/VertexBuffer.cpp
     src/IndexBuffer.cpp
     src/VertexArray.cpp
     src/Shader.cpp
+    src/Texture.cpp
 )
 
-# Add Ultralight wrapper if SDK is found
 if(ULTRALIGHT_FOUND)
     target_sources(${PROJECT_NAME} PRIVATE
         src/UltralightRenderer.cpp
     )
 endif()
 
-# Link libraries
 target_link_libraries(${PROJECT_NAME} PRIVATE
     glfw
     glad
 )
 
-# Link Ultralight libraries if found
 if(ULTRALIGHT_FOUND)
     if(CMAKE_SYSTEM_NAME MATCHES "Windows")
         target_link_libraries(${PROJECT_NAME} PRIVATE
@@ -100,7 +90,6 @@ if(ULTRALIGHT_FOUND)
             AppCore
         )
     else()
-        # On Unix-like systems, libraries might have different names
         target_link_libraries(${PROJECT_NAME} PRIVATE
             UltralightCore
             Ultralight
@@ -109,42 +98,175 @@ if(ULTRALIGHT_FOUND)
         )
     endif()
     
-    # Copy Ultralight binaries to output directory
+    if(PYTHON_EXECUTABLE)
+        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E echo "Copying Ultralight binaries from ${ULTRALIGHT_BINARY_DIR} to $<TARGET_FILE_DIR:${PROJECT_NAME}>"
+            COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/cmake_copy_dir.py"
+                "${ULTRALIGHT_BINARY_DIR}"
+                "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
+            COMMAND ${CMAKE_COMMAND} -E echo "Ultralight binaries copied"
+        )
+        
+        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+            COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/cmake_copy_dir.py"
+                "${ULTRALIGHT_RESOURCES_DIR}"
+                "$<TARGET_FILE_DIR:${PROJECT_NAME}>/resources"
+        )
+    else()
+        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E echo "Copying Ultralight binaries from ${ULTRALIGHT_BINARY_DIR} to $<TARGET_FILE_DIR:${PROJECT_NAME}>"
+            COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${ULTRALIGHT_BINARY_DIR}"
+            $<TARGET_FILE_DIR:${PROJECT_NAME}>
+            COMMAND ${CMAKE_COMMAND} -E echo "Ultralight binaries copied"
+        )
+        
+        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${ULTRALIGHT_RESOURCES_DIR}"
+            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/resources"
+        )
+    endif()
+endif()
+
+if(PYTHON_EXECUTABLE)
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-        "${ULTRALIGHT_BINARY_DIR}"
-        $<TARGET_FILE_DIR:${PROJECT_NAME}>
+        COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/cmake_copy_dir.py"
+            "${CMAKE_SOURCE_DIR}/app"
+            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/app"
     )
-    
-    # Copy Ultralight resources to output directory
+else()
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory
-        "${ULTRALIGHT_RESOURCES_DIR}"
-        "$<TARGET_FILE_DIR:${PROJECT_NAME}>/resources"
+        "${CMAKE_SOURCE_DIR}/app"
+        "$<TARGET_FILE_DIR:${PROJECT_NAME}>/app"
     )
 endif()
 
-# Include directories
+set(DEPLOY_DIR "${CMAKE_BINARY_DIR}/deploy")
+add_custom_target(Deploy ALL
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${DEPLOY_DIR}"
+    COMMAND ${CMAKE_COMMAND} -E echo "Creating deployment directory at ${DEPLOY_DIR}..."
+    DEPENDS ${PROJECT_NAME}
+)
+
+add_custom_command(TARGET Deploy POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy
+    $<TARGET_FILE:${PROJECT_NAME}>
+    "${DEPLOY_DIR}/"
+)
+
+if(EXISTS "${CMAKE_SOURCE_DIR}/Assets")
+    if(PYTHON_EXECUTABLE)
+        add_custom_command(TARGET Deploy POST_BUILD
+            COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/cmake_copy_dir.py"
+                "${CMAKE_SOURCE_DIR}/Assets"
+                "${DEPLOY_DIR}/Assets"
+        )
+    else()
+        add_custom_command(TARGET Deploy POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_SOURCE_DIR}/Assets"
+            "${DEPLOY_DIR}/Assets"
+        )
+    endif()
+endif()
+
+if(PYTHON_EXECUTABLE)
+    add_custom_command(TARGET Deploy POST_BUILD
+        COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/cmake_copy_dir.py"
+            "${CMAKE_SOURCE_DIR}/app"
+            "${DEPLOY_DIR}/app"
+    )
+else()
+    add_custom_command(TARGET Deploy POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_SOURCE_DIR}/app"
+        "${DEPLOY_DIR}/app"
+    )
+endif()
+
+if(ULTRALIGHT_FOUND)
+    if(PYTHON_EXECUTABLE)
+        add_custom_command(TARGET Deploy POST_BUILD
+            COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/cmake_copy_dir.py"
+                "${ULTRALIGHT_BINARY_DIR}"
+                "${DEPLOY_DIR}"
+        )
+        
+        add_custom_command(TARGET Deploy POST_BUILD
+            COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/cmake_copy_dir.py"
+                "${ULTRALIGHT_RESOURCES_DIR}"
+                "${DEPLOY_DIR}/resources"
+        )
+    else()
+        add_custom_command(TARGET Deploy POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${ULTRALIGHT_BINARY_DIR}"
+            "${DEPLOY_DIR}"
+        )
+        
+        add_custom_command(TARGET Deploy POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${ULTRALIGHT_RESOURCES_DIR}"
+            "${DEPLOY_DIR}/resources"
+        )
+    endif()
+    
+    message(STATUS "")
+    message(STATUS "=== Deployment Setup ===")
+    message(STATUS "Deployment directory: ${DEPLOY_DIR}")
+    message(STATUS "  This directory contains:")
+    message(STATUS "    - ULGL-Embed.exe")
+    message(STATUS "    - All Ultralight DLLs")
+    message(STATUS "    - resources/ folder")
+    message(STATUS "    - Assets/ folder")
+    message(STATUS "    - app/ folder (React app)")
+    message(STATUS "")
+    message(STATUS "To run: Use 'cmake --build . --target Run'")
+    message(STATUS "")
+endif()
+
+if(CMAKE_SYSTEM_NAME MATCHES "Windows")
+    set(EXECUTABLE_NAME "${PROJECT_NAME}.exe")
+else()
+    set(EXECUTABLE_NAME "${PROJECT_NAME}")
+endif()
+
+add_custom_target(Run
+    COMMAND ${CMAKE_COMMAND} -E chdir "${DEPLOY_DIR}" "${EXECUTABLE_NAME}"
+    DEPENDS Deploy
+    COMMENT "Running ${PROJECT_NAME} from deployment directory"
+    USES_TERMINAL
+)
+
+add_custom_target(RunBin
+    COMMAND ${CMAKE_COMMAND} -E echo "Running ${PROJECT_NAME} from bin directory..."
+    COMMAND $<TARGET_FILE:${PROJECT_NAME}>
+    DEPENDS ${PROJECT_NAME}
+    COMMENT "Running ${PROJECT_NAME} from bin directory"
+    USES_TERMINAL
+)
+
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${GLAD_INCLUDE_DIR}
     ${CMAKE_SOURCE_DIR}/Vendor/glfw/include
 )
 
-# Add Ultralight include directory if found
 if(ULTRALIGHT_FOUND)
     target_include_directories(${PROJECT_NAME} PRIVATE
         ${ULTRALIGHT_INCLUDE_DIR}
     )
 endif()
 
-# Platform-specific linking
 if(WIN32)
-    # Windows-specific libraries
     target_link_libraries(${PROJECT_NAME} PRIVATE
         opengl32
     )
+    set_target_properties(${PROJECT_NAME} PROPERTIES
+        LINK_FLAGS "/SUBSYSTEM:CONSOLE"
+    )
 elseif(APPLE)
-    # macOS-specific libraries
     find_library(COCOA_FRAMEWORK Cocoa REQUIRED)
     find_library(IOKIT_FRAMEWORK IOKit REQUIRED)
     find_library(COREVIDEO_FRAMEWORK CoreVideo REQUIRED)
@@ -154,7 +276,6 @@ elseif(APPLE)
         ${COREVIDEO_FRAMEWORK}
     )
 elseif(UNIX)
-    # Linux-specific libraries
     target_link_libraries(${PROJECT_NAME} PRIVATE
         GL
         X11
