@@ -1,58 +1,73 @@
 import React, { useState } from "react";
-import NativeComponent from "./NativeComponent";
+import { Button } from "components/ui/button";
+import { Input } from "components/ui/input";
+import { Slider } from "components/ui/slider";
+import { Checkbox } from "components/ui/checkbox";
+import { Label } from "components/ui/label";
 
 export default function App() {
-  const [showTriangle, setShowTriangle] = useState(true);
-  const [showComponent2, setShowComponent2] = useState(false);
-  const [showComponent3, setShowComponent3] = useState(false);
+  const [text, setText] = useState("");
+  const [password, setPassword] = useState("");
   const [sliderValue, setSliderValue] = useState(50);
+  const [checked, setChecked] = useState(false);
 
   return (
-    <div className="p-4">
-      <div className="mb-4">
-        <button 
-          onClick={() => setShowTriangle(!showTriangle)}
-          className="px-4 py-2 mr-2 bg-blue-500 text-white rounded"
-        >
-          {showTriangle ? "Hide" : "Show"} Triangle
-        </button>
-        <button 
-          onClick={() => setShowComponent2(!showComponent2)}
-          className="px-4 py-2 mr-2 bg-green-500 text-white rounded"
-        >
-          {showComponent2 ? "Hide" : "Show"} Component 2
-        </button>
-        <button 
-          onClick={() => setShowComponent3(!showComponent3)}
-          className="px-4 py-2 bg-red-500 text-white rounded"
-        >
-          {showComponent3 ? "Hide" : "Show"} Component 3
-        </button>
-      </div>
-      {showTriangle && (
-        <NativeComponent 
-          name="triangle" 
-          style={{ width: '400px', height: '300px' }}
+    <div className="space-y-6 p-6 max-w-md mx-auto">
+      <div className="space-y-2">
+        <Label htmlFor="text">Text input</Label>
+        <Input
+          id="text"
+          placeholder="Text"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
         />
-      )}
-      {showComponent2 && (
-        <div className="mb-4">
-          <input
-            type="range"
-            min="0"
-            max="100"
-            value={sliderValue}
-            onChange={(e) => setSliderValue(Number(e.target.value))}
-            className="w-64"
-          />
-          <span className="ml-2">{sliderValue}</span>
-        </div>
-      )}
-      {showComponent3 && (
-        <p className="mb-4">
-          lmao some text cause i cant be bothered to open lorem ipsum
-        </p>
-      )}
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="password">Password</Label>
+        <Input
+          id="password"
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label>Value: {sliderValue}</Label>
+        <Slider
+          value={[sliderValue]}
+          min={0}
+          max={100}
+          step={1}
+          onValueChange={(val) => setSliderValue(val[0])}
+        />
+      </div>
+
+      <div className="flex items-center space-x-2">
+        <Checkbox
+          id="checkbox"
+          checked={checked}
+          onCheckedChange={(val) => setChecked(val as boolean)}
+        />
+        <Label htmlFor="checkbox">Check me</Label>
+      </div>
+
+      <div className="flex space-x-4">
+        <Button>Submit</Button>
+        <Button
+          variant="secondary"
+          onClick={() => {
+            setText("");
+            setPassword("");
+            setSliderValue(50);
+            setChecked(false);
+          }}
+        >
+          Reset
+        </Button>
+      </div>
     </div>
   );
 }
