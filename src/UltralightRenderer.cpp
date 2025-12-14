@@ -381,6 +381,19 @@ const ComponentSlot* UltralightRenderer::GetComponentSlot(const std::string& nam
     return nullptr;
 }
 
+void UltralightRenderer::Resize(uint32_t width, uint32_t height)
+{
+    if (!m_Initialized || !m_View)
+        return;
+
+    if (width == m_Width && height == m_Height)
+        return;
+
+    m_Width = width;
+    m_Height = height;
+    m_View->Resize(width, height);
+}
+
 void UltralightLoadListener::OnBeginLoading(ultralight::View* caller, uint64_t frame_id, bool is_main_frame,
                                             const ultralight::String& url)
 {

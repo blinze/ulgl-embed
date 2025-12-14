@@ -152,6 +152,7 @@ InputEventHandler::InputEventHandler()
     , m_MouseY(0)
     , m_MouseInViewport(false)
     , m_IsDragging(false)
+    , m_ResizeCallback(nullptr)
 {
 }
 
@@ -349,6 +350,16 @@ void InputEventHandler::OnFocus(bool focused)
 
 void InputEventHandler::OnResize(int width, int height)
 {
+    if (width <= 0 || height <= 0)
+        return;
+
+    if (m_Renderer && m_Renderer->IsInitialized())
+        m_Renderer->Resize(static_cast<uint32_t>(width), static_cast<uint32_t>(height));
+
+    SetViewportRegion(0, 0, width, height);
+
+    if (m_ResizeCallback)
+        m_ResizeCallback(width, height);
 }
 
 void GLFW_MouseMoveCallback(GLFWwindow* window, double x, double y)

@@ -25,8 +25,8 @@
 #include "UltralightRenderer.h"
 #include "InputEvent.h"
 
-static constexpr uint32_t WINDOW_WIDTH = 1280;
-static constexpr uint32_t WINDOW_HEIGHT = 720;
+static constexpr uint32_t INITIAL_WINDOW_WIDTH = 1280;
+static constexpr uint32_t INITIAL_WINDOW_HEIGHT = 720;
 
 void CheckGLError(const char* location)
 {
@@ -44,7 +44,6 @@ int main(void)
 
     try
     {
-        // Set working directory to executable location
         std::filesystem::path exePath;
 #ifdef _WIN32
         char exePathBuf[MAX_PATH];
@@ -71,7 +70,7 @@ int main(void)
         if (!glfwInit())
             return -1;
 
-        GLFWwindow* window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "ULGL-Embed", nullptr, nullptr);
+        GLFWwindow* window = glfwCreateWindow(INITIAL_WINDOW_WIDTH, INITIAL_WINDOW_HEIGHT, "ULGL-Embed", nullptr, nullptr);
         if (!window)
         {
             glfwTerminate();
@@ -88,19 +87,25 @@ int main(void)
 
         std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
 
-        Component triangleComponent(400, 300);
+        int windowWidth, windowHeight;
+        glfwGetFramebufferSize(window, &windowWidth, &windowHeight);
+
+        Component triangleComponent(windowWidth, windowHeight);
         triangleComponent.SetClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
-        Vertex triangleVertices[] = {
+        Vertex triangleVertices[] =
+        {
             {{  0.0f,  0.5f }, { 1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f }},
             {{  0.5f, -0.5f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 0.0f }},
             {{ -0.5f, -0.5f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 0.0f }},
         };
+        
         uint32_t triangleIndices[] = { 0, 1, 2 };
         triangleComponent.SetGeometry(triangleVertices, 3, triangleIndices, 3);
         triangleComponent.SetShader("assets/Shader.vert", "assets/Shader.frag");
 
-        Vertex quadVertices[] = {
+        Vertex quadVertices[] =
+        {
             {{ -1.0f, -1.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f }},
             {{  1.0f, -1.0f }, { 0.0f, 0.0f, 0.0f }, { 1.0f, 0.0f }},
             {{  1.0f,  1.0f }, { 0.0f, 0.0f, 0.0f }, { 1.0f, 1.0f }},
@@ -133,16 +138,21 @@ int main(void)
 
         UltralightRenderer ultralight;
         InputEventHandler inputHandler;
-        Texture ultralightTexture(WINDOW_WIDTH, WINDOW_HEIGHT, nullptr, GL_RGBA8, GL_BGRA);
+        Texture ultralightTexture(windowWidth, windowHeight, nullptr, GL_RGBA8, GL_BGRA);
 
-        if (!ultralight.Initialize(WINDOW_WIDTH, WINDOW_HEIGHT))
+        if (!ultralight.Initialize(windowWidth, windowHeight))
         {
             std::cerr << "Failed to initialize Ultralight!" << std::endl;
             return -1;
         }
 
         inputHandler.Initialize(window, &ultralight);
-        inputHandler.SetViewportRegion(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
+        inputHandler.SetViewportRegion(0, 0, windowWidth, windowHeight);
+        
+        inputHandler.SetResizeCallback([&ultralightTexture](int width, int height)
+        {
+            ultralightTexture.Resize(static_cast<uint32_t>(width), static_cast<uint32_t>(height));
+        });
 
         ultralight.LoadURL("file:///app/build/index.html");
 
@@ -155,8 +165,36 @@ int main(void)
         textureShader.Bind();
         int texLoc = glGetUniformLocation(textureShader.GetID(), "u_Texture");
 
+        uint32_t prevTriangleWidth = 0;
+        uint32_t prevTriangleHeight = 0;
+        constexpr float RESOLUTION_SCALE = 2.0f;
+
         while (!glfwWindowShouldClose(window))
         {
+            const ComponentSlot* triangleSlot = ultralight.GetComponentSlot("triangle");
+            if (triangleSlot && triangleSlot->visible)
+            {
+                uint32_t targetWidth = static_cast<uint32_t>(triangleSlot->width * RESOLUTION_SCALE);
+                uint32_t targetHeight = static_cast<uint32_t>(triangleSlot->height * RESOLUTION_SCALE);
+                
+                if (targetWidth < 1)
+                    targetWidth = 1;
+                if (targetHeight < 1)
+                    targetHeight = 1;
+                
+                if (targetWidth != prevTriangleWidth || targetHeight != prevTriangleHeight)
+                {
+                    triangleComponent.Resize(targetWidth, targetHeight);
+                    prevTriangleWidth = targetWidth;
+                    prevTriangleHeight = targetHeight;
+                }
+            }
+            else if (prevTriangleWidth > 0 || prevTriangleHeight > 0)
+            {
+                prevTriangleWidth = 0;
+                prevTriangleHeight = 0;
+            }
+
             triangleComponent.Render();
 
             ultralight.Update();
@@ -177,8 +215,11 @@ int main(void)
                 }
             }
 
+            int currentWidth, currentHeight;
+            glfwGetFramebufferSize(window, &currentWidth, &currentHeight);
+
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
-            glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
+            glViewport(0, 0, currentWidth, currentHeight);
             glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT);
 
@@ -190,11 +231,10 @@ int main(void)
             flippedQuadVAO.Bind();
             glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
 
-            const ComponentSlot* triangleSlot = ultralight.GetComponentSlot("triangle");
             if (triangleSlot && triangleSlot->visible)
             {
                 int x = static_cast<int>(triangleSlot->x);
-                int y = static_cast<int>(WINDOW_HEIGHT - triangleSlot->y - triangleSlot->height);
+                int y = static_cast<int>(currentHeight - triangleSlot->y - triangleSlot->height);
                 int w = static_cast<int>(triangleSlot->width);
                 int h = static_cast<int>(triangleSlot->height);
 
@@ -206,7 +246,7 @@ int main(void)
                 glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
             }
 
-            glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
+            glViewport(0, 0, currentWidth, currentHeight);
 
             glfwPollEvents();
             glfwSwapBuffers(window);

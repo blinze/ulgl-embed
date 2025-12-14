@@ -1,6 +1,9 @@
 build/
 compile_commands.json
 
+yarn.lock
+package-lock.json
+
 *.log
 
 .cache/
