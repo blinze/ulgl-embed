@@ -25,8 +25,7 @@ def copy_file_safe(src_file, dst_file):
         print(f"  Warning: Could not copy {os.path.basename(src_file)}: {e}", file=sys.stderr)
         return False
 
-def copy_directory(src, dst):
-    """Copy directory, handling locked files gracefully."""
+def copy_directory(src, dst, exclude_dirs=None, exclude_files=None):
     if not os.path.exists(src):
         print(f"Warning: Source directory does not exist: {src}", file=sys.stderr)
         return 1
@@ -34,6 +33,11 @@ def copy_directory(src, dst):
     if not os.path.isdir(src):
         print(f"Error: Source is not a directory: {src}", file=sys.stderr)
         return 1
+
+    if exclude_dirs is None:
+        exclude_dirs = ['node_modules', '.git', '.vscode', '.idea', '__pycache__', '.pytest_cache', 'src', 'public']
+    if exclude_files is None:
+        exclude_files = ['.gitignore', '.gitattributes', '.DS_Store', 'Thumbs.db', 'yarn.lock', 'package-lock.json', 'tsconfig.json']
 
     try:
         os.makedirs(dst, exist_ok=True)
@@ -45,6 +49,8 @@ def copy_directory(src, dst):
     skipped_count = 0
 
     for root, dirs, files in os.walk(src):
+        dirs[:] = [d for d in dirs if d not in exclude_dirs]
+        
         rel_path = os.path.relpath(root, src)
         if rel_path == '.':
             dst_dir = dst
@@ -56,6 +62,10 @@ def copy_directory(src, dst):
             pass
 
         for file in files:
+            if file in exclude_files:
+                skipped_count += 1
+                continue
+                
             src_file = os.path.join(root, file)
             dst_file = os.path.join(dst_dir, file)
 
@@ -65,7 +75,7 @@ def copy_directory(src, dst):
                 skipped_count += 1
 
     if skipped_count > 0:
-        print(f"Copied {copied_count} files, skipped {skipped_count} locked files from {src} to {dst}", file=sys.stderr)
+        print(f"Copied {copied_count} files, skipped {skipped_count} files from {src} to {dst}")
     else:
         print(f"Successfully copied {copied_count} files from {src} to {dst}")
     return 0
