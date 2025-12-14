@@ -177,7 +177,7 @@ int main(void)
         quadVAO.SetIndexBuffer(quadIBO);
 
         std::cout << "Creating triangle shader..." << std::endl;
-        Shader triangleShader("Assets/Shader.vert", "Assets/Shader.frag");
+        Shader triangleShader("assets/Shader.vert", "assets/Shader.frag");
         if (triangleShader.GetID() == 0)
         {
             std::cerr << "Failed to create triangle shader!" << std::endl;
@@ -189,7 +189,7 @@ int main(void)
         CheckGLError("After triangle shader creation");
 
         std::cout << "Creating texture shader..." << std::endl;
-        Shader textureShader("Assets/TextureShader.vert", "Assets/TextureShader.frag");
+        Shader textureShader("assets/TextureShader.vert", "assets/TextureShader.frag");
         if (textureShader.GetID() == 0)
         {
             std::cerr << "Failed to create texture shader!" << std::endl;
