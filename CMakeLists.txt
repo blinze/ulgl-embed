@@ -69,6 +69,8 @@ add_executable(${PROJECT_NAME}
     src/VertexArray.cpp
     src/Shader.cpp
     src/Texture.cpp
+    src/Framebuffer.cpp
+    src/Component.cpp
 )
 
 if(ULTRALIGHT_FOUND)
