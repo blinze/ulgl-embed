@@ -4,4 +4,4 @@ build/
 .cache/
 .vscode/
 
-Vendor/Ultralight
+vendor/Ultralight

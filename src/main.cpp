@@ -46,13 +46,13 @@ int main(void)
 {
     std::cout << "=== Application Starting ===" << std::endl;
     std::cerr << "=== Application Starting (stderr) ===" << std::endl;
-    
+
 #ifdef _WIN32
     setvbuf(stdout, NULL, _IONBF, 0);
     setvbuf(stderr, NULL, _IONBF, 0);
     std::cout.flush();
     std::cerr.flush();
-    
+
     HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
     if (hConsole != INVALID_HANDLE_VALUE)
     {
@@ -100,9 +100,9 @@ int main(void)
         std::cerr << "Warning: Could not set working directory: " << e.what() << std::endl;
         std::cerr << "Continuing with current working directory: " << std::filesystem::current_path() << std::endl;
     }
-    
+
     std::cout << "=== ULGL-Embed Starting ===" << std::endl;
-    
+
     try
     {
         std::cout << "Initializing GLFW..." << std::endl;
@@ -112,7 +112,7 @@ int main(void)
             PauseConsole();
             return -1;
         }
-        
+
         std::cout << "Creating window..." << std::endl;
         GLFWwindow* window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT,
                                               "ULGL-Embed", nullptr, nullptr);
@@ -123,10 +123,10 @@ int main(void)
             PauseConsole();
             return -1;
         }
-        
+
         std::cout << "Setting OpenGL context..." << std::endl;
         glfwMakeContextCurrent(window);
-        
+
         std::cout << "Loading OpenGL functions..." << std::endl;
         if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
         {
@@ -136,7 +136,7 @@ int main(void)
             PauseConsole();
             return -1;
         }
-        
+
         std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
         CheckGLError("After GLAD init");
 
@@ -198,9 +198,9 @@ int main(void)
             return -1;
         }
         CheckGLError("After texture shader creation");
-        
+
         uint32_t halfWidth = WINDOW_WIDTH / 2;
-        
+
         std::cout << "Creating texture for Ultralight (resolution: " << halfWidth << "x" << WINDOW_HEIGHT << ")..." << std::endl;
         Texture ultralightTexture(halfWidth, WINDOW_HEIGHT, nullptr, GL_RGBA8, GL_BGRA);
         CheckGLError("After texture creation");
@@ -231,18 +231,18 @@ int main(void)
                     std::cout << "Found fallback HTML file at: " << fallbackPath << std::endl;
                 }
             }
-            
+
             std::cout << "Loading React app..." << std::endl;
             ultralight.LoadURL("file:///app/build/index.html");
             std::cout << "React app load requested." << std::endl;
-            
+
             if (auto* view = ultralight.GetView())
             {
                 view->Focus();
                 std::cout << "View focused." << std::endl;
             }
         }
-        
+
         std::cout << "Entering main loop..." << std::endl;
 
         while (!glfwWindowShouldClose(window))
@@ -255,7 +255,7 @@ int main(void)
             {
                 ultralight.Update();
                 ultralight.Render();
-                
+
                 static bool firstRender = true;
                 if (ultralight.IsDirty() || firstRender)
                 {
@@ -267,20 +267,20 @@ int main(void)
                         {
                             uint32_t width = bitmap->width();
                             uint32_t height = bitmap->height();
-                            
+
                             static int frameCount = 0;
                             if (firstRender || frameCount % 60 == 0)
                             {
                                 uint32_t* pixelData = static_cast<uint32_t*>(pixels);
                                 uint32_t samplePixel = pixelData[width * height / 2];
-                                std::cout << "Frame " << frameCount << ": Bitmap size=" << width << "x" << height 
+                                std::cout << "Frame " << frameCount << ": Bitmap size=" << width << "x" << height
                                           << ", sample pixel=0x" << std::hex << samplePixel << std::dec << std::endl;
                             }
                             frameCount++;
-                            
+
                             ultralightTexture.UpdateData(pixels, width, height);
                             CheckGLError("After texture update");
-                            
+
                             bitmap->UnlockPixels();
                             ultralight.ClearDirty();
                             firstRender = false;
@@ -310,14 +310,14 @@ int main(void)
                 glViewport(halfWidth, 0, halfWidth, WINDOW_HEIGHT);
                 textureShader.Bind();
                 ultralightTexture.Bind(0);
-                
+
                 int textureLocation = glGetUniformLocation(textureShader.GetID(), "u_Texture");
                 if (textureLocation != -1)
                 {
                     glUniform1i(textureLocation, 0);
                 }
                 CheckGLError("After shader bind");
-                
+
                 quadVAO.Bind();
                 glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
                 CheckGLError("After texture draw");
@@ -329,11 +329,11 @@ int main(void)
             glfwPollEvents();
             glfwSwapBuffers(window);
         }
-    
+
         std::cout << "Shutting down..." << std::endl;
         glfwDestroyWindow(window);
         glfwTerminate();
-        
+
         std::cout << "=== Program Exited Successfully ===" << std::endl;
         return 0;
     }
