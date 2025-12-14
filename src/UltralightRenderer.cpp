@@ -346,13 +346,11 @@ void UltralightLoadListener::OnDOMReady(ultralight::View* caller, uint64_t frame
     }
 }
 
-void UltralightViewListener::OnAddConsoleMessage(ultralight::View* caller, ultralight::MessageSource source,
-                                                 ultralight::MessageLevel level, const ultralight::String& message,
-                                                 uint32_t line_number, uint32_t column_number,
-                                                 const ultralight::String& source_id)
+void UltralightViewListener::OnAddConsoleMessage(ultralight::View* caller,
+                                                 const ultralight::ConsoleMessage& msg)
 {
     const char* levelStr = "LOG";
-    switch (level)
+    switch (msg.level())
     {
         case ultralight::kMessageLevel_Warning: levelStr = "WARNING"; break;
         case ultralight::kMessageLevel_Error: levelStr = "ERROR"; break;
@@ -361,10 +359,10 @@ void UltralightViewListener::OnAddConsoleMessage(ultralight::View* caller, ultra
         default: break;
     }
     
-    std::cout << "[Console " << levelStr << "] " << message.utf8().data();
-    if (line_number > 0)
-        std::cout << " (line " << line_number << ", col " << column_number << ")";
-    if (!source_id.empty())
-        std::cout << " in " << source_id.utf8().data();
+    std::cout << "[Console " << levelStr << "] " << msg.message().utf8().data();
+    if (msg.line_number() > 0)
+        std::cout << " (line " << msg.line_number() << ", col " << msg.column_number() << ")";
+    if (!msg.source_id().empty())
+        std::cout << " in " << msg.source_id().utf8().data();
     std::cout << std::endl;
 }

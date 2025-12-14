@@ -23,10 +23,8 @@ public:
 class UltralightViewListener : public ultralight::ViewListener
 {
 public:
-    void OnAddConsoleMessage(ultralight::View* caller, ultralight::MessageSource source,
-                            ultralight::MessageLevel level, const ultralight::String& message,
-                            uint32_t line_number, uint32_t column_number,
-                            const ultralight::String& source_id) override;
+    void OnAddConsoleMessage(ultralight::View* caller,
+                            const ultralight::ConsoleMessage& message) override;
 };
 
 class UltralightRenderer
