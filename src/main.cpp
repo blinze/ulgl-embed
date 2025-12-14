@@ -22,6 +22,8 @@
 #include "VertexArray.h"
 #include "Shader.h"
 #include "Texture.h"
+#include "Framebuffer.h"
+#include "Component.h"
 #include "UltralightRenderer.h"
 #include "InputEvent.h"
 
@@ -141,75 +143,39 @@ int main(void)
         std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
         CheckGLError("After GLAD init");
 
-        Vertex triangleVertices[] =
-        {
-            {{  0.0f,  0.5f }, { 1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f }}, // Top
-            {{  0.5f, -0.5f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 0.0f }}, // Bottom-right
-            {{ -0.5f, -0.5f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 0.0f }}, // Bottom-left
-        };
-
-        uint32_t triangleIndices[] = { 0, 1, 2 };
-
-        VertexArray triangleVAO;
-        VertexBuffer triangleVBO(triangleVertices, sizeof(triangleVertices));
-        IndexBuffer triangleIBO(triangleIndices, sizeof(triangleIndices) / sizeof(uint32_t));
-
-        triangleVAO.Bind();
-        triangleVAO.AddVertexBuffer(triangleVBO);
-        triangleVAO.SetIndexBuffer(triangleIBO);
-
-        Vertex quadVertices[] =
-        {
-            {{ -1.0f, -1.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 1.0f }}, // Bottom-left
-            {{  1.0f, -1.0f }, { 0.0f, 0.0f, 0.0f }, { 1.0f, 1.0f }}, // Bottom-right
-            {{  1.0f,  1.0f }, { 0.0f, 0.0f, 0.0f }, { 1.0f, 0.0f }}, // Top-right
-            {{ -1.0f,  1.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f }}  // Top-left
-        };
-
-        uint32_t quadIndices[] = { 0, 1, 2, 2, 3, 0 };
-
-        VertexArray quadVAO;
-        VertexBuffer quadVBO(quadVertices, sizeof(quadVertices));
-        IndexBuffer quadIBO(quadIndices, sizeof(quadIndices) / sizeof(uint32_t));
-
-        quadVAO.Bind();
-        quadVAO.AddVertexBuffer(quadVBO);
-        quadVAO.SetIndexBuffer(quadIBO);
-
-        std::cout << "Creating triangle shader..." << std::endl;
-        Shader triangleShader("assets/Shader.vert", "assets/Shader.frag");
-        if (triangleShader.GetID() == 0)
-        {
-            std::cerr << "Failed to create triangle shader!" << std::endl;
-            glfwDestroyWindow(window);
-            glfwTerminate();
-            PauseConsole();
-            return -1;
-        }
-        CheckGLError("After triangle shader creation");
-
-        std::cout << "Creating texture shader..." << std::endl;
-        Shader textureShader("assets/TextureShader.vert", "assets/TextureShader.frag");
-        if (textureShader.GetID() == 0)
-        {
-            std::cerr << "Failed to create texture shader!" << std::endl;
-            glfwDestroyWindow(window);
-            glfwTerminate();
-            PauseConsole();
-            return -1;
-        }
-        CheckGLError("After texture shader creation");
-
         uint32_t halfWidth = WINDOW_WIDTH / 2;
 
-        std::cout << "Creating texture for Ultralight (resolution: " << halfWidth << "x" << WINDOW_HEIGHT << ")..." << std::endl;
-        Texture ultralightTexture(halfWidth, WINDOW_HEIGHT, nullptr, GL_RGBA8, GL_BGRA);
-        CheckGLError("After texture creation");
+        std::cout << "Creating triangle component..." << std::endl;
+        Component triangleComponent(halfWidth, WINDOW_HEIGHT);
+        triangleComponent.SetClearColor(0.1f, 0.1f, 0.1f);
 
-        std::cout << "Initializing Ultralight (resolution: " << halfWidth << "x" << WINDOW_HEIGHT << ")..." << std::endl;
+        Vertex triangleVertices[] = {
+            {{  0.0f,  0.5f }, { 1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f }},
+            {{  0.5f, -0.5f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 0.0f }},
+            {{ -0.5f, -0.5f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 0.0f }},
+        };
+        uint32_t triangleIndices[] = { 0, 1, 2 };
+        triangleComponent.SetGeometry(triangleVertices, 3, triangleIndices, 3);
+        triangleComponent.SetShader("assets/Shader.vert", "assets/Shader.frag");
+
+        std::cout << "Creating Ultralight component..." << std::endl;
+        Component ultralightComponent(halfWidth, WINDOW_HEIGHT);
+        ultralightComponent.SetClearColor(1.0f, 1.0f, 1.0f);
+
+        Vertex quadVertices[] = {
+            {{ -1.0f, -1.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 1.0f }},
+            {{  1.0f, -1.0f }, { 0.0f, 0.0f, 0.0f }, { 1.0f, 1.0f }},
+            {{  1.0f,  1.0f }, { 0.0f, 0.0f, 0.0f }, { 1.0f, 0.0f }},
+            {{ -1.0f,  1.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f }}
+        };
+        uint32_t quadIndices[] = { 0, 1, 2, 2, 3, 0 };
+        ultralightComponent.SetGeometry(quadVertices, 4, quadIndices, 6);
+        ultralightComponent.SetShader("assets/TextureShader.vert", "assets/TextureShader.frag");
+
         UltralightRenderer ultralight;
         InputEventHandler inputHandler;
-        
+        Texture ultralightTexture(halfWidth, WINDOW_HEIGHT, nullptr, GL_RGBA8, GL_BGRA);
+
         if (!ultralight.Initialize(halfWidth, WINDOW_HEIGHT))
         {
             std::cerr << "Failed to initialize Ultralight! Continuing without it..." << std::endl;
@@ -219,52 +185,59 @@ int main(void)
             std::cout << "Ultralight initialized successfully!" << std::endl;
             inputHandler.Initialize(window, &ultralight);
             inputHandler.SetViewportRegion(halfWidth, 0, halfWidth, WINDOW_HEIGHT);
-            std::cout << "Input event handler initialized for viewport region: (" 
-                      << halfWidth << ", 0) - " << halfWidth << "x" << WINDOW_HEIGHT << std::endl;
-            
+
             std::filesystem::path htmlPath = std::filesystem::current_path() / "app" / "build" / "index.html";
-            std::cout << "Checking for HTML file at: " << htmlPath << std::endl;
             if (std::filesystem::exists(htmlPath))
             {
-                std::cout << "HTML file found!" << std::endl;
+                std::cout << "HTML file found at: " << htmlPath << std::endl;
             }
             else
             {
                 std::cerr << "WARNING: HTML file not found at: " << htmlPath << std::endl;
-                std::cerr << "Current working directory: " << std::filesystem::current_path() << std::endl;
-                std::filesystem::path fallbackPath = std::filesystem::current_path() / "app" / "index.html";
-                if (std::filesystem::exists(fallbackPath))
-                {
-                    std::cout << "Found fallback HTML file at: " << fallbackPath << std::endl;
-                }
             }
 
-            std::cout << "Loading React app..." << std::endl;
             ultralight.LoadURL("file:///app/build/index.html");
-            std::cout << "React app load requested." << std::endl;
 
             if (auto* view = ultralight.GetView())
             {
                 view->Focus();
-                std::cout << "View focused." << std::endl;
             }
+
+            ultralightComponent.SetRenderCallback([&]() {
+                ultralightComponent.GetShader()->Bind();
+                ultralightTexture.Bind(0);
+                int texLoc = glGetUniformLocation(ultralightComponent.GetShader()->GetID(), "u_Texture");
+                if (texLoc != -1) glUniform1i(texLoc, 0);
+                ultralightComponent.GetVAO()->Bind();
+                glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
+            });
         }
 
-        std::cout << "Entering main loop..." << std::endl;
+        Vertex screenQuadVertices[] = {
+            {{ -1.0f, -1.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f }},
+            {{  1.0f, -1.0f }, { 0.0f, 0.0f, 0.0f }, { 1.0f, 0.0f }},
+            {{  1.0f,  1.0f }, { 0.0f, 0.0f, 0.0f }, { 1.0f, 1.0f }},
+            {{ -1.0f,  1.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 1.0f }}
+        };
+        VertexArray screenQuadVAO;
+        VertexBuffer screenQuadVBO(screenQuadVertices, sizeof(screenQuadVertices));
+        IndexBuffer screenQuadIBO(quadIndices, 6);
+        screenQuadVAO.Bind();
+        screenQuadVAO.AddVertexBuffer(screenQuadVBO);
+        screenQuadVAO.SetIndexBuffer(screenQuadIBO);
+
+        Shader screenShader("assets/TextureShader.vert", "assets/TextureShader.frag");
 
         while (!glfwWindowShouldClose(window))
         {
-            glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-            glClear(GL_COLOR_BUFFER_BIT);
-            CheckGLError("After clear");
+            triangleComponent.Render();
 
             if (ultralight.IsInitialized())
             {
                 ultralight.Update();
                 ultralight.Render();
 
-                static bool firstRender = true;
-                if (ultralight.IsDirty() || firstRender)
+                if (ultralight.IsDirty())
                 {
                     auto* bitmap = ultralight.GetBitmap();
                     if (bitmap)
@@ -272,72 +245,44 @@ int main(void)
                         void* pixels = bitmap->LockPixels();
                         if (pixels)
                         {
-                            uint32_t width = bitmap->width();
-                            uint32_t height = bitmap->height();
-
-                            static int frameCount = 0;
-                            if (firstRender || frameCount % 60 == 0)
-                            {
-                                uint32_t* pixelData = static_cast<uint32_t*>(pixels);
-                                uint32_t samplePixel = pixelData[width * height / 2];
-                                std::cout << "Frame " << frameCount << ": Bitmap size=" << width << "x" << height
-                                          << ", sample pixel=0x" << std::hex << samplePixel << std::dec << std::endl;
-                            }
-                            frameCount++;
-
-                            ultralightTexture.UpdateData(pixels, width, height);
-                            CheckGLError("After texture update");
-
+                            ultralightTexture.UpdateData(pixels, bitmap->width(), bitmap->height());
                             bitmap->UnlockPixels();
                             ultralight.ClearDirty();
-                            firstRender = false;
                         }
-                        else
-                        {
-                            std::cerr << "Failed to lock bitmap pixels!" << std::endl;
-                        }
-                    }
-                    else
-                    {
-                        if (firstRender)
-                            std::cerr << "Bitmap is null!" << std::endl;
                     }
                 }
+
+                ultralightComponent.Render();
             }
 
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT);
+
+            screenShader.Bind();
+            int texLoc = glGetUniformLocation(screenShader.GetID(), "u_Texture");
+
             glViewport(0, 0, halfWidth, WINDOW_HEIGHT);
-            glDisable(GL_DEPTH_TEST);
-            triangleShader.Bind();
-            triangleVAO.Bind();
-            glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, nullptr);
-            CheckGLError("After triangle draw");
+            triangleComponent.BindTexture(0);
+            if (texLoc != -1) glUniform1i(texLoc, 0);
+            screenQuadVAO.Bind();
+            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
 
             if (ultralight.IsInitialized())
             {
                 glViewport(halfWidth, 0, halfWidth, WINDOW_HEIGHT);
-                textureShader.Bind();
-                ultralightTexture.Bind(0);
-
-                int textureLocation = glGetUniformLocation(textureShader.GetID(), "u_Texture");
-                if (textureLocation != -1)
-                {
-                    glUniform1i(textureLocation, 0);
-                }
-                CheckGLError("After shader bind");
-
-                quadVAO.Bind();
+                ultralightComponent.BindTexture(0);
+                if (texLoc != -1) glUniform1i(texLoc, 0);
+                screenQuadVAO.Bind();
                 glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
-                CheckGLError("After texture draw");
             }
 
             glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
-            glEnable(GL_DEPTH_TEST);
 
             glfwPollEvents();
             glfwSwapBuffers(window);
         }
-
-        std::cout << "Shutting down..." << std::endl;
+        
         glfwDestroyWindow(window);
         glfwTerminate();
 
