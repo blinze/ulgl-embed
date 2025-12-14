@@ -23,6 +23,7 @@
 #include "Shader.h"
 #include "Texture.h"
 #include "UltralightRenderer.h"
+#include "InputEvent.h"
 
 static constexpr uint32_t WINDOW_WIDTH = 1280;
 static constexpr uint32_t WINDOW_HEIGHT = 720;
@@ -207,6 +208,8 @@ int main(void)
 
         std::cout << "Initializing Ultralight (resolution: " << halfWidth << "x" << WINDOW_HEIGHT << ")..." << std::endl;
         UltralightRenderer ultralight;
+        InputEventHandler inputHandler;
+        
         if (!ultralight.Initialize(halfWidth, WINDOW_HEIGHT))
         {
             std::cerr << "Failed to initialize Ultralight! Continuing without it..." << std::endl;
@@ -214,6 +217,10 @@ int main(void)
         else
         {
             std::cout << "Ultralight initialized successfully!" << std::endl;
+            inputHandler.Initialize(window, &ultralight);
+            inputHandler.SetViewportRegion(halfWidth, 0, halfWidth, WINDOW_HEIGHT);
+            std::cout << "Input event handler initialized for viewport region: (" 
+                      << halfWidth << ", 0) - " << halfWidth << "x" << WINDOW_HEIGHT << std::endl;
             
             std::filesystem::path htmlPath = std::filesystem::current_path() / "app" / "build" / "index.html";
             std::cout << "Checking for HTML file at: " << htmlPath << std::endl;

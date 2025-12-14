@@ -4,6 +4,7 @@ project(ULGL-Embed VERSION 1.0.0 LANGUAGES CXX C)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 find_program(PYTHON_EXECUTABLE python python3)
 
@@ -73,6 +74,7 @@ add_executable(${PROJECT_NAME}
 if(ULTRALIGHT_FOUND)
     target_sources(${PROJECT_NAME} PRIVATE
         src/UltralightRenderer.cpp
+        src/InputEvent.cpp
     )
 endif()
 
@@ -265,3 +267,11 @@ elseif(UNIX)
     )
 endif()
 
+if(CMAKE_EXPORT_COMPILE_COMMANDS AND EXISTS "${CMAKE_BINARY_DIR}/compile_commands.json")
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_BINARY_DIR}/compile_commands.json"
+            "${CMAKE_SOURCE_DIR}/compile_commands.json"
+        COMMENT "Copying compile_commands.json to source directory"
+    )
+endif()

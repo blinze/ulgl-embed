@@ -1,18 +1,20 @@
-import React from "react";
+import React, { useState } from "react";
 
 export default function App() {
-  const handleClick = () => {
-    alert("Button clicked");
-  };
+  const [sliderValue, setSliderValue] = useState(50);
 
   return (
     <div>
       <input type="text" placeholder="text" />
-
       <input type="password" placeholder="secret password" />
-
-      <input type="range" min={0} max={100} value={50} />
-
+      <input
+        type="range"
+        min={0}
+        max={100}
+        value={sliderValue}
+        onChange={(e) => setSliderValue(Number(e.target.value))}
+      />
+      <span>{sliderValue}</span>
       <input type="checkbox" />
 
       <select>
@@ -21,7 +23,7 @@ export default function App() {
         <option value="option3">Option 3</option>
       </select>
 
-      <button onClick={handleClick}>Submit</button>
+      <button>Submit</button>
     </div>
   );
 }
