@@ -1,29 +1,73 @@
 import React, { useState } from "react";
+import { Button } from "components/ui/button";
+import { Input } from "components/ui/input";
+import { Slider } from "components/ui/slider";
+import { Checkbox } from "components/ui/checkbox";
+import { Label } from "components/ui/label";
 
 export default function App() {
+  const [text, setText] = useState("");
+  const [password, setPassword] = useState("");
   const [sliderValue, setSliderValue] = useState(50);
+  const [checked, setChecked] = useState(false);
 
   return (
-    <div>
-      <input type="text" placeholder="text" />
-      <input type="password" placeholder="secret password" />
-      <input
-        type="range"
-        min={0}
-        max={100}
-        value={sliderValue}
-        onChange={(e) => setSliderValue(Number(e.target.value))}
-      />
-      <span>{sliderValue}</span>
-      <input type="checkbox" />
+    <div className="space-y-6 p-6 max-w-md mx-auto">
+      <div className="space-y-2">
+        <Label htmlFor="text">Text input</Label>
+        <Input
+          id="text"
+          placeholder="Text"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+        />
+      </div>
 
-      <select>
-        <option value="option1">Option 1</option>
-        <option value="option2">Option 2</option>
-        <option value="option3">Option 3</option>
-      </select>
+      <div className="space-y-2">
+        <Label htmlFor="password">Password</Label>
+        <Input
+          id="password"
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+      </div>
 
-      <button className="rounded-md bg-blue-500 px-4 py-2 hover:bg-blue-400 transition">Submit</button>
+      <div className="space-y-2">
+        <Label>Value: {sliderValue}</Label>
+        <Slider
+          value={[sliderValue]}
+          min={0}
+          max={100}
+          step={1}
+          onValueChange={(val) => setSliderValue(val[0])}
+        />
+      </div>
+
+      <div className="flex items-center space-x-2">
+        <Checkbox
+          id="checkbox"
+          checked={checked}
+          onCheckedChange={(val) => setChecked(val as boolean)}
+        />
+        <Label htmlFor="checkbox">Check me</Label>
+      </div>
+
+      <div className="flex space-x-4">
+        <Button>Submit</Button>
+        <Button
+          variant="secondary"
+          onClick={() => {
+            setText("");
+            setPassword("");
+            setSliderValue(50);
+            setChecked(false);
+          }}
+        >
+          Reset
+        </Button>
+      </div>
     </div>
   );
 }
