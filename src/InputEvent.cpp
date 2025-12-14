@@ -218,6 +218,7 @@ void InputEventHandler::OnMouseMove(double x, double y)
         evt.y = viewY;
         evt.button = ultralight::MouseEvent::kButton_None;
         view->FireMouseEvent(evt);
+        m_Renderer->ForceRepaint();
     }
 }
 
@@ -259,6 +260,9 @@ void InputEventHandler::OnMouseButton(int button, int action, int mods)
     evt.y = viewY;
     evt.button = GLFWButtonToUltralightButton(button);
     view->FireMouseEvent(evt);
+    
+    // Force repaint to update active/focus states
+    m_Renderer->ForceRepaint();
 }
 
 void InputEventHandler::OnScroll(double xoffset, double yoffset)
@@ -278,6 +282,9 @@ void InputEventHandler::OnScroll(double xoffset, double yoffset)
     evt.delta_x = static_cast<int>(xoffset * 32);
     evt.delta_y = static_cast<int>(yoffset * 32);
     view->FireScrollEvent(evt);
+    
+    // Force repaint after scroll
+    m_Renderer->ForceRepaint();
 }
 
 void InputEventHandler::OnKey(int key, int scancode, int action, int mods)
