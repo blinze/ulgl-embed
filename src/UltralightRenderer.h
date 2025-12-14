@@ -5,6 +5,17 @@
 #include <AppCore/Platform.h>
 #include <cstdint>
 #include <string>
+#include <functional>
+#include <unordered_map>
+
+struct ComponentSlot
+{
+    float x = 0;
+    float y = 0;
+    float width = 0;
+    float height = 0;
+    bool visible = false;
+};
 
 class UltralightLoadListener : public ultralight::LoadListener
 {
@@ -33,9 +44,14 @@ private:
     ultralight::RefPtr<ultralight::Renderer> m_Renderer;
     ultralight::RefPtr<ultralight::View> m_View;
     bool m_Initialized;
+    uint32_t m_Width;
+    uint32_t m_Height;
     UltralightLoadListener m_LoadListener;
     UltralightViewListener m_ViewListener;
+    std::unordered_map<std::string, ComponentSlot> m_ComponentSlots;
+
 public:
+    void BindJavaScriptAPI();
     UltralightRenderer();
     ~UltralightRenderer();
 
@@ -56,9 +72,15 @@ public:
 
     ultralight::View* GetView() const { return m_View.get(); }
     bool IsInitialized() const { return m_Initialized; }
+    uint32_t GetWidth() const { return m_Width; }
+    uint32_t GetHeight() const { return m_Height; }
 
     ultralight::Bitmap* GetBitmap() const;
     bool IsDirty() const;
     void ClearDirty();
     void ForceRepaint();
+
+    void SetComponentSlot(const std::string& name, float x, float y, float width, float height, bool visible);
+    const ComponentSlot* GetComponentSlot(const std::string& name) const;
+    const std::unordered_map<std::string, ComponentSlot>& GetAllSlots() const { return m_ComponentSlots; }
 };

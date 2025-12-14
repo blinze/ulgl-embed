@@ -1,4 +1,5 @@
 #include "UltralightRenderer.h"
+#include <JavaScriptCore/JavaScript.h>
 #include <iostream>
 #include <filesystem>
 #include <algorithm>
@@ -8,8 +9,37 @@
 #include <windows.h>
 #endif
 
+static UltralightRenderer* g_CurrentRenderer = nullptr;
+JSValueRef JS_SetComponentSlot(JSContextRef ctx, JSObjectRef function,
+                                JSObjectRef thisObject, size_t argumentCount,
+                                const JSValueRef arguments[], JSValueRef* exception)
+{
+    if (!g_CurrentRenderer || argumentCount < 6)
+        return JSValueMakeUndefined(ctx);
+
+    JSStringRef nameStr = JSValueToStringCopy(ctx, arguments[0], nullptr);
+    size_t maxSize = JSStringGetMaximumUTF8CStringSize(nameStr);
+    char* nameBuffer = new char[maxSize];
+    JSStringGetUTF8CString(nameStr, nameBuffer, maxSize);
+    std::string name(nameBuffer);
+    delete[] nameBuffer;
+    JSStringRelease(nameStr);
+
+    float x = static_cast<float>(JSValueToNumber(ctx, arguments[1], nullptr));
+    float y = static_cast<float>(JSValueToNumber(ctx, arguments[2], nullptr));
+    float width = static_cast<float>(JSValueToNumber(ctx, arguments[3], nullptr));
+    float height = static_cast<float>(JSValueToNumber(ctx, arguments[4], nullptr));
+    bool visible = JSValueToBoolean(ctx, arguments[5]);
+
+    g_CurrentRenderer->SetComponentSlot(name, x, y, width, height, visible);
+    
+    return JSValueMakeUndefined(ctx);
+}
+
 UltralightRenderer::UltralightRenderer()
     : m_Initialized(false)
+    , m_Width(0)
+    , m_Height(0)
 {
 }
 
@@ -200,7 +230,11 @@ bool UltralightRenderer::Initialize(uint32_t width, uint32_t height)
         m_View->set_load_listener(&m_LoadListener);
         m_View->set_view_listener(&m_ViewListener);
 
+        m_Width = width;
+        m_Height = height;
         m_Initialized = true;
+        g_CurrentRenderer = this;
+        
         std::cout << "  Ultralight initialization complete!" << std::endl;
         return true;
     }
@@ -308,6 +342,45 @@ void UltralightRenderer::ForceRepaint()
     m_View->set_needs_paint(true);
 }
 
+void UltralightRenderer::BindJavaScriptAPI()
+{
+    if (!m_Initialized || !m_View)
+        return;
+
+    auto scoped_context = m_View->LockJSContext();
+    JSContextRef ctx = (*scoped_context);
+    JSObjectRef globalObj = JSContextGetGlobalObject(ctx);
+
+    JSClassDefinition classDef = kJSClassDefinitionEmpty;
+    classDef.className = "Native";
+    JSClassRef classRef = JSClassCreate(&classDef);
+    JSObjectRef nativeObj = JSObjectMake(ctx, classRef, nullptr);
+    JSClassRelease(classRef);
+
+    JSStringRef funcName = JSStringCreateWithUTF8CString("setComponentSlot");
+    JSObjectRef funcObj = JSObjectMakeFunctionWithCallback(ctx, funcName, JS_SetComponentSlot);
+    JSObjectSetProperty(ctx, nativeObj, funcName, funcObj, kJSPropertyAttributeNone, nullptr);
+    JSStringRelease(funcName);
+
+    JSStringRef nativeName = JSStringCreateWithUTF8CString("native");
+    JSObjectSetProperty(ctx, globalObj, nativeName, nativeObj, kJSPropertyAttributeNone, nullptr);
+    JSStringRelease(nativeName);
+}
+
+void UltralightRenderer::SetComponentSlot(const std::string& name, float x, float y, 
+                                          float width, float height, bool visible)
+{
+    m_ComponentSlots[name] = { x, y, width, height, visible };
+}
+
+const ComponentSlot* UltralightRenderer::GetComponentSlot(const std::string& name) const
+{
+    auto it = m_ComponentSlots.find(name);
+    if (it != m_ComponentSlots.end())
+        return &it->second;
+    return nullptr;
+}
+
 void UltralightLoadListener::OnBeginLoading(ultralight::View* caller, uint64_t frame_id, bool is_main_frame,
                                             const ultralight::String& url)
 {
@@ -341,7 +414,10 @@ void UltralightLoadListener::OnDOMReady(ultralight::View* caller, uint64_t frame
     if (is_main_frame)
     {
         std::cout << "[Load] DOM ready for: " << url.utf8().data() << std::endl;
-        // Force a repaint after DOM is ready to ensure content is rendered
+        
+        if (g_CurrentRenderer)
+            g_CurrentRenderer->BindJavaScriptAPI();
+        
         caller->set_needs_paint(true);
     }
 }
