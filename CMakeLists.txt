@@ -18,10 +18,10 @@ set(GLFW_INSTALL OFF CACHE BOOL "" FORCE)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 set(GLFW_LIBRARY_TYPE STATIC CACHE STRING "" FORCE)
 
-add_subdirectory(${CMAKE_SOURCE_DIR}/Vendor/glfw)
+add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/glfw)
 
-set(GLAD_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/Vendor/glad/include)
-set(GLAD_SRC_DIR ${CMAKE_SOURCE_DIR}/Vendor/glad/src)
+set(GLAD_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/vendor/glad/include)
+set(GLAD_SRC_DIR ${CMAKE_SOURCE_DIR}/vendor/glad/src)
 
 add_library(glad STATIC
     ${GLAD_SRC_DIR}/glad.c
@@ -31,7 +31,7 @@ target_include_directories(glad PUBLIC
     ${GLAD_INCLUDE_DIR}
 )
 
-set(ULTRALIGHT_SDK_PATH "${CMAKE_SOURCE_DIR}/Vendor/Ultralight" CACHE PATH "Path to Ultralight SDK")
+set(ULTRALIGHT_SDK_PATH "${CMAKE_SOURCE_DIR}/vendor/Ultralight" CACHE PATH "Path to Ultralight SDK")
 
 if(EXISTS "${ULTRALIGHT_SDK_PATH}/include")
     message(STATUS "Found Ultralight SDK at: ${ULTRALIGHT_SDK_PATH}")
@@ -168,18 +168,18 @@ elseif(APPLE)
     )
 endif()
 
-if(EXISTS "${CMAKE_SOURCE_DIR}/Assets")
+if(EXISTS "${CMAKE_SOURCE_DIR}/assets")
     if(PYTHON_EXECUTABLE)
         add_custom_command(TARGET Deploy POST_BUILD
             COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/cmake_copy_dir.py"
-                "${CMAKE_SOURCE_DIR}/Assets"
-                "${DEPLOY_DIR}/Assets"
+                "${CMAKE_SOURCE_DIR}/assets"
+                "${DEPLOY_DIR}/assets"
         )
     else()
         add_custom_command(TARGET Deploy POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${CMAKE_SOURCE_DIR}/Assets"
-            "${DEPLOY_DIR}/Assets"
+            "${CMAKE_SOURCE_DIR}/assets"
+            "${DEPLOY_DIR}/assets"
         )
     endif()
 endif()
@@ -232,44 +232,42 @@ if(ULTRALIGHT_FOUND)
     message(STATUS "    - ULGL-Embed.exe")
     message(STATUS "    - All Ultralight DLLs")
     message(STATUS "    - resources/ folder")
-    message(STATUS "    - Assets/ folder")
+    message(STATUS "    - assets/ folder")
     message(STATUS "    - app/ folder (React app)")
     message(STATUS "")
-    message(STATUS "To run: Use 'cmake --build . --target Run'")
+    message(STATUS "To run: Use 'cmake --build . --target run'")
     message(STATUS "")
 endif()
 
 if(CMAKE_SYSTEM_NAME MATCHES "Windows")
     set(EXECUTABLE_NAME "${PROJECT_NAME}.exe")
-    add_custom_target(Run
+    add_custom_target(run
         COMMAND ${CMAKE_COMMAND} -E echo "Running ${PROJECT_NAME} from deployment directory..."
         COMMAND ${CMAKE_COMMAND} -E chdir "${DEPLOY_DIR}" "${EXECUTABLE_NAME}"
         DEPENDS Deploy
-        COMMENT "Running ${PROJECT_NAME} from deployment directory (CMake will wait for the window to close)"
         USES_TERMINAL
+        COMMAND_EXPAND_LISTS
     )
 else()
     set(EXECUTABLE_NAME "${PROJECT_NAME}")
-    add_custom_target(Run
+    add_custom_target(run
         COMMAND ${CMAKE_COMMAND} -E echo "Running ${PROJECT_NAME} from deployment directory..."
         COMMAND ${CMAKE_COMMAND} -E chdir "${DEPLOY_DIR}" ./${EXECUTABLE_NAME}
         DEPENDS Deploy
-        COMMENT "Running ${PROJECT_NAME} from deployment directory (CMake will wait for the window to close)"
         USES_TERMINAL
     )
 endif()
 
-add_custom_target(RunBin
+add_custom_target(run_bin
     COMMAND ${CMAKE_COMMAND} -E echo "Running ${PROJECT_NAME} from bin directory..."
     COMMAND $<TARGET_FILE:${PROJECT_NAME}>
     DEPENDS ${PROJECT_NAME}
-    COMMENT "Running ${PROJECT_NAME} from bin directory"
     USES_TERMINAL
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${GLAD_INCLUDE_DIR}
-    ${CMAKE_SOURCE_DIR}/Vendor/glfw/include
+    ${CMAKE_SOURCE_DIR}/vendor/glfw/include
 )
 
 if(ULTRALIGHT_FOUND)

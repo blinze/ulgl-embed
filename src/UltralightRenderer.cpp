@@ -79,7 +79,8 @@ bool UltralightRenderer::Initialize(uint32_t width, uint32_t height)
 
 #ifdef _WIN32
         std::cout << "  Checking for required DLLs..." << std::endl;
-        const char* requiredDLLs[] = {
+        const char* requiredDLLs[] =
+        {
             "UltralightCore.dll",
             "Ultralight.dll",
             "WebCore.dll",
@@ -117,10 +118,9 @@ bool UltralightRenderer::Initialize(uint32_t width, uint32_t height)
             std::cerr << "  Continuing anyway, but Renderer::Create() will likely fail..." << std::endl;
         }
 #endif
-
         std::cout << "  Creating renderer..." << std::endl;
         std::cout << "    Calling Renderer::Create()..." << std::endl;
-        std::cout << "    WARNING: If the program crashes here, check:" << std::endl;
+        std::cout << "    NOTE: If the program crashes here, check:" << std::endl;
         std::cout << "      1. ultralight.log file in the working directory" << std::endl;
 #ifdef _WIN32
         std::cout << "      2. Windows Event Viewer for crash details" << std::endl;
@@ -187,6 +187,10 @@ bool UltralightRenderer::Initialize(uint32_t width, uint32_t height)
             std::cerr << "  Failed to create Ultralight view!" << std::endl;
             return false;
         }
+
+        std::cout << "  Setting up view listeners..." << std::endl;
+        m_View->set_load_listener(&m_LoadListener);
+        m_View->set_view_listener(&m_ViewListener);
 
         m_Initialized = true;
         std::cout << "  Ultralight initialization complete!" << std::endl;
@@ -285,7 +289,74 @@ void UltralightRenderer::ClearDirty()
 
     ultralight::BitmapSurface* bitmap_surface = static_cast<ultralight::BitmapSurface*>(surface);
     if (bitmap_surface)
-    {
         bitmap_surface->ClearDirtyBounds();
+}
+
+void UltralightRenderer::ForceRepaint()
+{
+    if (!m_Initialized || !m_View)
+        return;
+
+    m_View->set_needs_paint(true);
+}
+
+void UltralightLoadListener::OnBeginLoading(ultralight::View* caller, uint64_t frame_id, bool is_main_frame,
+                                            const ultralight::String& url)
+{
+    if (is_main_frame)
+        std::cout << "[Load] Beginning to load: " << url.utf8().data() << std::endl;
+}
+
+void UltralightLoadListener::OnFinishLoading(ultralight::View* caller, uint64_t frame_id, bool is_main_frame,
+                                             const ultralight::String& url)
+{
+    if (is_main_frame)
+        std::cout << "[Load] Finished loading: " << url.utf8().data() << std::endl;
+}
+
+void UltralightLoadListener::OnFailLoading(ultralight::View* caller, uint64_t frame_id, bool is_main_frame,
+                                           const ultralight::String& url, const ultralight::String& description,
+                                           const ultralight::String& error_domain, int error_code)
+{
+    if (is_main_frame)
+    {
+        std::cerr << "[Load ERROR] Failed to load: " << url.utf8().data() << std::endl;
+        std::cerr << "  Description: " << description.utf8().data() << std::endl;
+        std::cerr << "  Error Domain: " << error_domain.utf8().data() << std::endl;
+        std::cerr << "  Error Code: " << error_code << std::endl;
     }
+}
+
+void UltralightLoadListener::OnDOMReady(ultralight::View* caller, uint64_t frame_id, bool is_main_frame,
+                                        const ultralight::String& url)
+{
+    if (is_main_frame)
+    {
+        std::cout << "[Load] DOM ready for: " << url.utf8().data() << std::endl;
+        // Force a repaint after DOM is ready to ensure content is rendered
+        caller->set_needs_paint(true);
+    }
+}
+
+void UltralightViewListener::OnAddConsoleMessage(ultralight::View* caller, ultralight::MessageSource source,
+                                                 ultralight::MessageLevel level, const ultralight::String& message,
+                                                 uint32_t line_number, uint32_t column_number,
+                                                 const ultralight::String& source_id)
+{
+    const char* levelStr = "LOG";
+    switch (level)
+    {
+        case ultralight::kMessageLevel_Warning: levelStr = "WARNING"; break;
+        case ultralight::kMessageLevel_Error: levelStr = "ERROR"; break;
+        case ultralight::kMessageLevel_Debug: levelStr = "DEBUG"; break;
+        case ultralight::kMessageLevel_Info: levelStr = "INFO"; break;
+        default: break;
+    }
+    
+    std::cout << "[Console " << levelStr << "] " << message.utf8().data();
+    if (line_number > 0)
+        std::cout << " (line " << line_number << ", col " << column_number << ")";
+    if (!source_id.empty())
+        std::cout << " in " << source_id.utf8().data();
+    std::cout << std::endl;
 }

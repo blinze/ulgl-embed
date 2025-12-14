@@ -1,17 +1,20 @@
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
-#include <iostream>
-#include <cassert>
-#include <exception>
-#include <filesystem>
-#include <string>
-#include <stdexcept>
-
 #ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #elif defined(__APPLE__)
 #include <mach-o/dyld.h>
 #endif
+
+#include <glad/glad.h>
+#include <GLFW/glfw3.h>
+#include <iostream>
+#include <cassert>
+#include <cstdio>
+#include <cstring>
+#include <exception>
+#include <filesystem>
+#include <string>
+#include <stdexcept>
 
 #include "Vertex.h"
 #include "VertexBuffer.h"
@@ -41,11 +44,22 @@ void PauseConsole()
 
 int main(void)
 {
+    std::cout << "=== Application Starting ===" << std::endl;
+    std::cerr << "=== Application Starting (stderr) ===" << std::endl;
+    
 #ifdef _WIN32
-    AllocConsole();
-    freopen_s((FILE**)stdout, "CONOUT$", "w", stdout);
-    freopen_s((FILE**)stderr, "CONOUT$", "w", stderr);
-    freopen_s((FILE**)stdin, "CONIN$", "r", stdin);
+    setvbuf(stdout, NULL, _IONBF, 0);
+    setvbuf(stderr, NULL, _IONBF, 0);
+    std::cout.flush();
+    std::cerr.flush();
+    
+    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+    if (hConsole != INVALID_HANDLE_VALUE)
+    {
+        const char* msg = "=== Direct console write ===\n";
+        DWORD written;
+        WriteConsoleA(hConsole, msg, strlen(msg), &written, NULL);
+    }
 #endif
     try
     {
@@ -200,9 +214,28 @@ int main(void)
         else
         {
             std::cout << "Ultralight initialized successfully!" << std::endl;
+            
+            std::filesystem::path htmlPath = std::filesystem::current_path() / "app" / "index.html";
+            std::cout << "Checking for HTML file at: " << htmlPath << std::endl;
+            if (std::filesystem::exists(htmlPath))
+            {
+                std::cout << "HTML file found!" << std::endl;
+            }
+            else
+            {
+                std::cerr << "WARNING: HTML file not found at: " << htmlPath << std::endl;
+                std::cerr << "Current working directory: " << std::filesystem::current_path() << std::endl;
+            }
+            
             std::cout << "Loading React app..." << std::endl;
             ultralight.LoadURL("file:///app/index.html");
             std::cout << "React app load requested." << std::endl;
+            
+            if (auto* view = ultralight.GetView())
+            {
+                view->Focus();
+                std::cout << "View focused." << std::endl;
+            }
         }
         
         std::cout << "Entering main loop..." << std::endl;
@@ -218,7 +251,8 @@ int main(void)
                 ultralight.Update();
                 ultralight.Render();
                 
-                if (ultralight.IsDirty())
+                static bool firstRender = true;
+                if (ultralight.IsDirty() || firstRender)
                 {
                     auto* bitmap = ultralight.GetBitmap();
                     if (bitmap)
@@ -229,12 +263,32 @@ int main(void)
                             uint32_t width = bitmap->width();
                             uint32_t height = bitmap->height();
                             
+                            static int frameCount = 0;
+                            if (firstRender || frameCount % 60 == 0)
+                            {
+                                uint32_t* pixelData = static_cast<uint32_t*>(pixels);
+                                uint32_t samplePixel = pixelData[width * height / 2];
+                                std::cout << "Frame " << frameCount << ": Bitmap size=" << width << "x" << height 
+                                          << ", sample pixel=0x" << std::hex << samplePixel << std::dec << std::endl;
+                            }
+                            frameCount++;
+                            
                             ultralightTexture.UpdateData(pixels, width, height);
                             CheckGLError("After texture update");
                             
                             bitmap->UnlockPixels();
                             ultralight.ClearDirty();
+                            firstRender = false;
                         }
+                        else
+                        {
+                            std::cerr << "Failed to lock bitmap pixels!" << std::endl;
+                        }
+                    }
+                    else
+                    {
+                        if (firstRender)
+                            std::cerr << "Bitmap is null!" << std::endl;
                     }
                 }
             }
