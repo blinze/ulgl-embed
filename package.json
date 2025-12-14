@@ -1,0 +1,13 @@
+{
+  "name": "ulgl-embed",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "yarn build:app && yarn build:cmake",
+    "build:app": "cd app && yarn build",
+    "build:cmake": "cmake -B build && cmake --build build",
+    "build:clean": "yarn clean && yarn build",
+    "clean": "cmake -E remove_directory build && cmake -E remove_directory app/build",
+    "dev": "cmake --build build --target run"
+  }
+}

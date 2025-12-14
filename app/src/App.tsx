@@ -23,7 +23,7 @@ export default function App() {
         <option value="option3">Option 3</option>
       </select>
 
-      <button>Submit</button>
+      <button className="rounded-md bg-blue-500 px-4 py-2 hover:bg-blue-400 transition">Submit</button>
     </div>
   );
 }
