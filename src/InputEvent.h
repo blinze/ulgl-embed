@@ -11,6 +11,8 @@
 
 class UltralightRenderer;
 
+using ResizeCallback = std::function<void(int width, int height)>;
+
 int GLFWKeyToUltralightKey(int glfwKey);
 unsigned int GLFWModsToUltralightMods(int glfwMods);
 ultralight::MouseEvent::Button GLFWButtonToUltralightButton(int glfwButton);
@@ -22,6 +24,7 @@ public:
     ~InputEventHandler() = default;
 
     void Initialize(GLFWwindow* window, UltralightRenderer* renderer);
+    void SetResizeCallback(ResizeCallback callback) { m_ResizeCallback = callback; }
 
     void SetViewportRegion(int x, int y, int width, int height);
     bool IsInViewportRegion(double x, double y) const;
@@ -49,6 +52,8 @@ private:
 
     bool m_MouseInViewport;
     bool m_IsDragging;
+
+    ResizeCallback m_ResizeCallback;
 };
 
 void GLFW_MouseMoveCallback(GLFWwindow* window, double x, double y);

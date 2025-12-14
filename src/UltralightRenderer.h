@@ -83,4 +83,6 @@ public:
     void SetComponentSlot(const std::string& name, float x, float y, float width, float height, bool visible);
     const ComponentSlot* GetComponentSlot(const std::string& name) const;
     const std::unordered_map<std::string, ComponentSlot>& GetAllSlots() const { return m_ComponentSlots; }
+
+    void Resize(uint32_t width, uint32_t height);
 };
