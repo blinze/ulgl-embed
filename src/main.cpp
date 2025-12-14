@@ -214,8 +214,8 @@ int main(void)
         else
         {
             std::cout << "Ultralight initialized successfully!" << std::endl;
-
-            std::filesystem::path htmlPath = std::filesystem::current_path() / "app" / "index.html";
+            
+            std::filesystem::path htmlPath = std::filesystem::current_path() / "app" / "build" / "index.html";
             std::cout << "Checking for HTML file at: " << htmlPath << std::endl;
             if (std::filesystem::exists(htmlPath))
             {
@@ -225,6 +225,11 @@ int main(void)
             {
                 std::cerr << "WARNING: HTML file not found at: " << htmlPath << std::endl;
                 std::cerr << "Current working directory: " << std::filesystem::current_path() << std::endl;
+                std::filesystem::path fallbackPath = std::filesystem::current_path() / "app" / "index.html";
+                if (std::filesystem::exists(fallbackPath))
+                {
+                    std::cout << "Found fallback HTML file at: " << fallbackPath << std::endl;
+                }
             }
 
             std::cout << "Loading React app..." << std::endl;

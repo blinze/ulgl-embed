@@ -1,6 +1,8 @@
 #include "UltralightRenderer.h"
 #include <iostream>
 #include <filesystem>
+#include <algorithm>
+#include <string>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -71,7 +73,13 @@ bool UltralightRenderer::Initialize(uint32_t width, uint32_t height)
             std::cerr << "    WARNING: Resources folder not found at: " << resourcesPath << std::endl;
             std::cerr << "    Ultralight may fail to initialize without resources!" << std::endl;
         }
-        ultralight::Platform::instance().set_file_system(ultralight::GetPlatformFileSystem("."));
+        
+        std::string fileSystemBase = currentDir.string();
+#ifdef _WIN32
+        std::replace(fileSystemBase.begin(), fileSystemBase.end(), '\\', '/');
+        std::cout << "    File system base (normalized): " << fileSystemBase << std::endl;
+#endif
+        ultralight::Platform::instance().set_file_system(ultralight::GetPlatformFileSystem(fileSystemBase.c_str()));
         
         std::cout << "  Setting logger..." << std::endl;
         ultralight::Platform::instance().set_logger(ultralight::GetDefaultLogger("ultralight.log"));

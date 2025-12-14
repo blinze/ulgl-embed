@@ -101,16 +101,19 @@ if(ULTRALIGHT_FOUND)
     if(PYTHON_EXECUTABLE)
         add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E echo "Copying Ultralight binaries from ${ULTRALIGHT_BINARY_DIR} to $<TARGET_FILE_DIR:${PROJECT_NAME}>"
-            COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/cmake_copy_dir.py"
+            COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/smart_copy.py"
+                "full"
                 "${ULTRALIGHT_BINARY_DIR}"
                 "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
             COMMAND ${CMAKE_COMMAND} -E echo "Ultralight binaries copied"
         )
         
         add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-            COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/cmake_copy_dir.py"
+            COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/smart_copy.py"
+                "full"
                 "${ULTRALIGHT_RESOURCES_DIR}"
                 "$<TARGET_FILE_DIR:${PROJECT_NAME}>/resources"
+            COMMENT "Copying Ultralight resources (incremental)"
         )
     else()
         add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
@@ -131,108 +134,76 @@ endif()
 
 if(PYTHON_EXECUTABLE)
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-        COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/cmake_copy_dir.py"
+        COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:${PROJECT_NAME}>/app"
+        COMMENT "Creating app directory"
+    )
+    
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/smart_copy.py"
+            "build"
             "${CMAKE_SOURCE_DIR}/app"
             "$<TARGET_FILE_DIR:${PROJECT_NAME}>/app"
+        COMMENT "Copying React app build output (incremental)"
     )
 else()
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:${PROJECT_NAME}>/app"
         COMMAND ${CMAKE_COMMAND} -E copy_directory
-        "${CMAKE_SOURCE_DIR}/app"
-        "$<TARGET_FILE_DIR:${PROJECT_NAME}>/app"
-    )
-endif()
-
-set(DEPLOY_DIR "${CMAKE_BINARY_DIR}/deploy")
-add_custom_target(Deploy ALL
-    COMMAND ${CMAKE_COMMAND} -E make_directory "${DEPLOY_DIR}"
-    COMMAND ${CMAKE_COMMAND} -E echo "Creating deployment directory at ${DEPLOY_DIR}..."
-    DEPENDS ${PROJECT_NAME}
-)
-
-add_custom_command(TARGET Deploy POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy
-    $<TARGET_FILE:${PROJECT_NAME}>
-    "${DEPLOY_DIR}/"
-)
-
-if(UNIX AND NOT APPLE)
-    add_custom_command(TARGET Deploy POST_BUILD
-        COMMAND chmod +x "${DEPLOY_DIR}/${PROJECT_NAME}"
-        COMMENT "Setting execute permissions on ${PROJECT_NAME}"
-    )
-elseif(APPLE)
-    add_custom_command(TARGET Deploy POST_BUILD
-        COMMAND chmod +x "${DEPLOY_DIR}/${PROJECT_NAME}"
-        COMMENT "Setting execute permissions on ${PROJECT_NAME}"
+            "${CMAKE_SOURCE_DIR}/app/build"
+            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/app/build"
+        COMMENT "Copying React app build output"
     )
 endif()
 
 if(EXISTS "${CMAKE_SOURCE_DIR}/assets")
     if(PYTHON_EXECUTABLE)
-        add_custom_command(TARGET Deploy POST_BUILD
-            COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/cmake_copy_dir.py"
+        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+            COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/smart_copy.py"
+                "full"
                 "${CMAKE_SOURCE_DIR}/assets"
-                "${DEPLOY_DIR}/assets"
+                "$<TARGET_FILE_DIR:${PROJECT_NAME}>/assets"
+            COMMENT "Copying assets (incremental)"
         )
     else()
-        add_custom_command(TARGET Deploy POST_BUILD
+        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_directory
             "${CMAKE_SOURCE_DIR}/assets"
-            "${DEPLOY_DIR}/assets"
+            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/assets"
         )
     endif()
 endif()
 
 if(PYTHON_EXECUTABLE)
-    add_custom_command(TARGET Deploy POST_BUILD
-        COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/cmake_copy_dir.py"
-            "${CMAKE_SOURCE_DIR}/app"
-            "${DEPLOY_DIR}/app"
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/copy_html_if_exists.py"
+            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/app/build/index.html"
+            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/app/index.html"
     )
-else()
-    add_custom_command(TARGET Deploy POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-        "${CMAKE_SOURCE_DIR}/app"
-        "${DEPLOY_DIR}/app"
+endif()
+
+if(UNIX AND NOT APPLE)
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND chmod +x "$<TARGET_FILE:${PROJECT_NAME}>"
+        COMMENT "Setting execute permissions on ${PROJECT_NAME}"
+    )
+elseif(APPLE)
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND chmod +x "$<TARGET_FILE:${PROJECT_NAME}>"
+        COMMENT "Setting execute permissions on ${PROJECT_NAME}"
     )
 endif()
 
 if(ULTRALIGHT_FOUND)
-    if(PYTHON_EXECUTABLE)
-        add_custom_command(TARGET Deploy POST_BUILD
-            COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/cmake_copy_dir.py"
-                "${ULTRALIGHT_BINARY_DIR}"
-                "${DEPLOY_DIR}"
-        )
-        
-        add_custom_command(TARGET Deploy POST_BUILD
-            COMMAND ${PYTHON_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/cmake_copy_dir.py"
-                "${ULTRALIGHT_RESOURCES_DIR}"
-                "${DEPLOY_DIR}/resources"
-        )
-    else()
-        add_custom_command(TARGET Deploy POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${ULTRALIGHT_BINARY_DIR}"
-            "${DEPLOY_DIR}"
-        )
-        
-        add_custom_command(TARGET Deploy POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${ULTRALIGHT_RESOURCES_DIR}"
-            "${DEPLOY_DIR}/resources"
-        )
-    endif()
-    
     message(STATUS "")
-    message(STATUS "=== Deployment Setup ===")
-    message(STATUS "Deployment directory: ${DEPLOY_DIR}")
+    message(STATUS "=== Build Output ===")
+    message(STATUS "Executable and dependencies are in: ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
     message(STATUS "  This directory contains:")
-    message(STATUS "    - ULGL-Embed.exe")
+    message(STATUS "    - ${PROJECT_NAME}${CMAKE_EXECUTABLE_SUFFIX}")
     message(STATUS "    - All Ultralight DLLs")
     message(STATUS "    - resources/ folder")
-    message(STATUS "    - assets/ folder")
+    if(EXISTS "${CMAKE_SOURCE_DIR}/assets")
+        message(STATUS "    - assets/ folder")
+    endif()
     message(STATUS "    - app/ folder (React app)")
     message(STATUS "")
     message(STATUS "To run: Use 'cmake --build . --target run'")
@@ -242,28 +213,21 @@ endif()
 if(CMAKE_SYSTEM_NAME MATCHES "Windows")
     set(EXECUTABLE_NAME "${PROJECT_NAME}.exe")
     add_custom_target(run
-        COMMAND ${CMAKE_COMMAND} -E echo "Running ${PROJECT_NAME} from deployment directory..."
-        COMMAND ${CMAKE_COMMAND} -E chdir "${DEPLOY_DIR}" "${EXECUTABLE_NAME}"
-        DEPENDS Deploy
+        COMMAND ${CMAKE_COMMAND} -E echo "Running ${PROJECT_NAME}..."
+        COMMAND ${CMAKE_COMMAND} -E chdir "$<TARGET_FILE_DIR:${PROJECT_NAME}>" "${EXECUTABLE_NAME}"
+        DEPENDS ${PROJECT_NAME}
         USES_TERMINAL
         COMMAND_EXPAND_LISTS
     )
 else()
     set(EXECUTABLE_NAME "${PROJECT_NAME}")
     add_custom_target(run
-        COMMAND ${CMAKE_COMMAND} -E echo "Running ${PROJECT_NAME} from deployment directory..."
-        COMMAND ${CMAKE_COMMAND} -E chdir "${DEPLOY_DIR}" ./${EXECUTABLE_NAME}
-        DEPENDS Deploy
+        COMMAND ${CMAKE_COMMAND} -E echo "Running ${PROJECT_NAME}..."
+        COMMAND ${CMAKE_COMMAND} -E chdir "$<TARGET_FILE_DIR:${PROJECT_NAME}>" ./${EXECUTABLE_NAME}
+        DEPENDS ${PROJECT_NAME}
         USES_TERMINAL
     )
 endif()
-
-add_custom_target(run_bin
-    COMMAND ${CMAKE_COMMAND} -E echo "Running ${PROJECT_NAME} from bin directory..."
-    COMMAND $<TARGET_FILE:${PROJECT_NAME}>
-    DEPENDS ${PROJECT_NAME}
-    USES_TERMINAL
-)
 
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${GLAD_INCLUDE_DIR}
