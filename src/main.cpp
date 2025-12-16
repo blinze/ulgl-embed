@@ -167,6 +167,13 @@ int main(void)
                 
                 return nullptr;
             });
+
+            bridge->Register("print", [](const JSArgs& args) -> JSValue {
+                auto message = JSBridge::GetArg<std::string>(args, 0);
+                if (message)
+                    std::cout << "JS: " << *message << std::endl;
+                return nullptr;
+            });
         }
 
         inputHandler.Initialize(window, &ultralight);

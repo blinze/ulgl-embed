@@ -52,6 +52,9 @@ export default function App() {
             setPassword("");
             setSliderValue(50);
             setChecked(false);
+            // example call to native function
+            if (window.native)
+              window.native.print("Hello from React!");
           }}
         >
           Reset

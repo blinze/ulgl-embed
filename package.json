@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "setup": "git submodule update --init --recursive && cd app && yarn install",
     "build": "yarn build:app && yarn build:cmake",
     "build:app": "cd app && yarn build",
     "build:cmake": "cmake -B build && cmake --build build",
