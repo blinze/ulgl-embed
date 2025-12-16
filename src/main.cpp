@@ -34,7 +34,9 @@
 static constexpr uint32_t INITIAL_WINDOW_WIDTH = 1280;
 static constexpr uint32_t INITIAL_WINDOW_HEIGHT = 720;
 
-static glm::vec3 g_CubeRotation = glm::vec3(0.0f);
+static glm::vec3 g_Rotation = glm::vec3(0.0f);
+static PrimitiveType g_PrimitiveType = PrimitiveType::Cube;
+static bool g_PrimitiveChanged = false;
 
 void CheckGLError(const char* location)
 {
@@ -98,16 +100,16 @@ int main(void)
         int windowWidth, windowHeight;
         glfwGetFramebufferSize(window, &windowWidth, &windowHeight);
 
-        Component cubeComponent(windowWidth, windowHeight);
-        cubeComponent.SetClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-        cubeComponent.EnableDepthTest(true);
+        Component primitiveComponent(windowWidth, windowHeight);
+        primitiveComponent.SetClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+        primitiveComponent.EnableDepthTest(true);
+        primitiveComponent.SetShader("assets/Shader.vert", "assets/Shader.frag");
         
-        Mesh cubeMesh = Primitives::CreateCube();
-        cubeComponent.SetGeometry(cubeMesh.vertices.data(), 
-                                  static_cast<uint32_t>(cubeMesh.vertices.size()),
-                                  cubeMesh.indices.data(), 
-                                  static_cast<uint32_t>(cubeMesh.indices.size()));
-        cubeComponent.SetShader("assets/Shader.vert", "assets/Shader.frag");
+        Mesh currentMesh = Primitives::CreatePrimitive(g_PrimitiveType);
+        primitiveComponent.SetGeometry(currentMesh.vertices.data(), 
+                                       static_cast<uint32_t>(currentMesh.vertices.size()),
+                                       currentMesh.indices.data(), 
+                                       static_cast<uint32_t>(currentMesh.indices.size()));
 
         Mesh quadMesh = Primitives::CreateQuad();
         VertexArray screenQuadVAO;
@@ -139,13 +141,29 @@ int main(void)
 
         if (auto* bridge = ultralight.GetJSBridge())
         {
-            bridge->Register("setCubeRotation", [](const JSArgs& args) -> JSValue {
+            bridge->Register("setRotation", [](const JSArgs& args) -> JSValue {
                 auto x = JSBridge::GetArg<float>(args, 0);
                 auto y = JSBridge::GetArg<float>(args, 1);
                 auto z = JSBridge::GetArg<float>(args, 2);
                 
                 if (x && y && z)
-                    g_CubeRotation = glm::vec3(*x, *y, *z);
+                    g_Rotation = glm::vec3(*x, *y, *z);
+                
+                return nullptr;
+            });
+            
+            bridge->Register("setPrimitive", [](const JSArgs& args) -> JSValue {
+                auto type = JSBridge::GetArg<std::string>(args, 0);
+                
+                if (type)
+                {
+                    PrimitiveType newType = StringToPrimitiveType(*type);
+                    if (newType != g_PrimitiveType)
+                    {
+                        g_PrimitiveType = newType;
+                        g_PrimitiveChanged = true;
+                    }
+                }
                 
                 return nullptr;
             });
@@ -189,7 +207,7 @@ int main(void)
                 
                 if (targetWidth != prevCubeWidth || targetHeight != prevCubeHeight)
                 {
-                    cubeComponent.Resize(targetWidth, targetHeight);
+                    primitiveComponent.Resize(targetWidth, targetHeight);
                     prevCubeWidth = targetWidth;
                     prevCubeHeight = targetHeight;
                 }
@@ -200,18 +218,26 @@ int main(void)
                 prevCubeHeight = 0;
             }
 
-            // Build MVP matrix with rotation from UI (degrees to radians)
-            float aspect = static_cast<float>(cubeComponent.GetWidth()) / static_cast<float>(cubeComponent.GetHeight());
+            if (g_PrimitiveChanged)
+            {
+                currentMesh = Primitives::CreatePrimitive(g_PrimitiveType);
+                primitiveComponent.SetGeometry(currentMesh.vertices.data(),
+                                               static_cast<uint32_t>(currentMesh.vertices.size()),
+                                               currentMesh.indices.data(),
+                                               static_cast<uint32_t>(currentMesh.indices.size()));
+                g_PrimitiveChanged = false;
+            }
+
+            float aspect = static_cast<float>(primitiveComponent.GetWidth()) / static_cast<float>(primitiveComponent.GetHeight());
             glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 100.0f);
             glm::mat4 view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -3.0f));
             glm::mat4 model = glm::mat4(1.0f);
-            model = glm::rotate(model, glm::radians(g_CubeRotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
-            model = glm::rotate(model, glm::radians(g_CubeRotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
-            model = glm::rotate(model, glm::radians(g_CubeRotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
+            model = glm::rotate(model, glm::radians(g_Rotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
+            model = glm::rotate(model, glm::radians(g_Rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
+            model = glm::rotate(model, glm::radians(g_Rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
             glm::mat4 mvp = projection * view * model;
-            cubeComponent.SetMVP(glm::value_ptr(mvp));
-
-            cubeComponent.Render();
+            primitiveComponent.SetMVP(glm::value_ptr(mvp));
+            primitiveComponent.Render();
 
             ultralight.Update();
             ultralight.Render();
@@ -256,7 +282,7 @@ int main(void)
                 int h = static_cast<int>(cubeSlot->height);
 
                 glViewport(x, y, w, h);
-                cubeComponent.BindTexture(0);
+                primitiveComponent.BindTexture(0);
                 if (texLoc != -1)
                     glUniform1i(texLoc, 0);
                 screenQuadVAO.Bind();

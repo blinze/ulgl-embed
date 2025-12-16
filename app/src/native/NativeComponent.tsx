@@ -1,5 +1,4 @@
 import React, { useRef, useEffect, useCallback } from "react";
-import "./types.d.ts";
 
 interface NativeComponentProps {
   name: string;
