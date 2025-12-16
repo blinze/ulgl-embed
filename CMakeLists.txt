@@ -20,6 +20,7 @@ set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 set(GLFW_LIBRARY_TYPE STATIC CACHE STRING "" FORCE)
 
 add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/glfw)
+add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/glm)
 
 set(GLAD_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/vendor/glad/include)
 set(GLAD_SRC_DIR ${CMAKE_SOURCE_DIR}/vendor/glad/src)
@@ -236,6 +237,7 @@ endif()
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${GLAD_INCLUDE_DIR}
     ${CMAKE_SOURCE_DIR}/vendor/glfw/include
+    ${CMAKE_SOURCE_DIR}/vendor/glm
 )
 
 if(ULTRALIGHT_FOUND)

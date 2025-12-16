@@ -4,6 +4,7 @@
 Framebuffer::Framebuffer(uint32_t width, uint32_t height)
     : m_RendererID(0)
     , m_ColorAttachment(0)
+    , m_DepthAttachment(0)
     , m_Width(width)
     , m_Height(height)
 {
@@ -20,16 +21,20 @@ Framebuffer::Framebuffer(uint32_t width, uint32_t height)
 
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_ColorAttachment, 0);
 
-    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-    {
-        std::cerr << "Framebuffer is not complete!" << std::endl;
-    }
+    glGenRenderbuffers(1, &m_DepthAttachment);
+    glBindRenderbuffer(GL_RENDERBUFFER, m_DepthAttachment);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, width, height);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, m_DepthAttachment);
 
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        std::cerr << "Framebuffer is not complete!" << std::endl;
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 Framebuffer::~Framebuffer()
 {
+    if (m_DepthAttachment)
+        glDeleteRenderbuffers(1, &m_DepthAttachment);
     if (m_ColorAttachment)
         glDeleteTextures(1, &m_ColorAttachment);
     if (m_RendererID)
@@ -39,17 +44,21 @@ Framebuffer::~Framebuffer()
 Framebuffer::Framebuffer(Framebuffer&& other) noexcept
     : m_RendererID(other.m_RendererID)
     , m_ColorAttachment(other.m_ColorAttachment)
+    , m_DepthAttachment(other.m_DepthAttachment)
     , m_Width(other.m_Width)
     , m_Height(other.m_Height)
 {
     other.m_RendererID = 0;
     other.m_ColorAttachment = 0;
+    other.m_DepthAttachment = 0;
 }
 
 Framebuffer& Framebuffer::operator=(Framebuffer&& other) noexcept
 {
     if (this != &other)
     {
+        if (m_DepthAttachment)
+            glDeleteRenderbuffers(1, &m_DepthAttachment);
         if (m_ColorAttachment)
             glDeleteTextures(1, &m_ColorAttachment);
         if (m_RendererID)
@@ -57,11 +66,13 @@ Framebuffer& Framebuffer::operator=(Framebuffer&& other) noexcept
 
         m_RendererID = other.m_RendererID;
         m_ColorAttachment = other.m_ColorAttachment;
+        m_DepthAttachment = other.m_DepthAttachment;
         m_Width = other.m_Width;
         m_Height = other.m_Height;
 
         other.m_RendererID = 0;
         other.m_ColorAttachment = 0;
+        other.m_DepthAttachment = 0;
     }
     return *this;
 }
@@ -87,6 +98,9 @@ void Framebuffer::Resize(uint32_t width, uint32_t height)
 
     glBindTexture(GL_TEXTURE_2D, m_ColorAttachment);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+
+    glBindRenderbuffer(GL_RENDERBUFFER, m_DepthAttachment);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, width, height);
 }
 
 void Framebuffer::BindColorAttachment(uint32_t slot) const

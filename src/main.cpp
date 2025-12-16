@@ -14,7 +14,12 @@
 #include <string>
 #include <stdexcept>
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
 #include "Vertex.h"
+#include "Primitives.h"
 #include "VertexBuffer.h"
 #include "IndexBuffer.h"
 #include "VertexArray.h"
@@ -90,46 +95,29 @@ int main(void)
         int windowWidth, windowHeight;
         glfwGetFramebufferSize(window, &windowWidth, &windowHeight);
 
-        Component triangleComponent(windowWidth, windowHeight);
-        triangleComponent.SetClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-
-        Vertex triangleVertices[] =
-        {
-            {{  0.0f,  0.5f }, { 1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f }},
-            {{  0.5f, -0.5f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 0.0f }},
-            {{ -0.5f, -0.5f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 0.0f }},
-        };
+        Component cubeComponent(windowWidth, windowHeight);
+        cubeComponent.SetClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+        cubeComponent.EnableDepthTest(true);
         
-        uint32_t triangleIndices[] = { 0, 1, 2 };
-        triangleComponent.SetGeometry(triangleVertices, 3, triangleIndices, 3);
-        triangleComponent.SetShader("assets/Shader.vert", "assets/Shader.frag");
+        Mesh cubeMesh = Primitives::CreateCube();
+        cubeComponent.SetGeometry(cubeMesh.vertices.data(), 
+                                  static_cast<uint32_t>(cubeMesh.vertices.size()),
+                                  cubeMesh.indices.data(), 
+                                  static_cast<uint32_t>(cubeMesh.indices.size()));
+        cubeComponent.SetShader("assets/Shader.vert", "assets/Shader.frag");
 
-        Vertex quadVertices[] =
-        {
-            {{ -1.0f, -1.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f }},
-            {{  1.0f, -1.0f }, { 0.0f, 0.0f, 0.0f }, { 1.0f, 0.0f }},
-            {{  1.0f,  1.0f }, { 0.0f, 0.0f, 0.0f }, { 1.0f, 1.0f }},
-            {{ -1.0f,  1.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 1.0f }}
-        };
-        uint32_t quadIndices[] = { 0, 1, 2, 2, 3, 0 };
-
+        Mesh quadMesh = Primitives::CreateQuad();
         VertexArray screenQuadVAO;
-        VertexBuffer screenQuadVBO(quadVertices, sizeof(quadVertices));
-        IndexBuffer screenQuadIBO(quadIndices, 6);
+        VertexBuffer screenQuadVBO(quadMesh.vertices.data(), quadMesh.vertices.size() * sizeof(Vertex));
+        IndexBuffer screenQuadIBO(quadMesh.indices.data(), static_cast<uint32_t>(quadMesh.indices.size()));
         screenQuadVAO.Bind();
         screenQuadVAO.AddVertexBuffer(screenQuadVBO);
         screenQuadVAO.SetIndexBuffer(screenQuadIBO);
 
-        Vertex flippedQuadVertices[] = {
-            {{ -1.0f, -1.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 1.0f }}, // Bottom-left: tex (0, 1)
-            {{  1.0f, -1.0f }, { 0.0f, 0.0f, 0.0f }, { 1.0f, 1.0f }}, // Bottom-right: tex (1, 1)
-            {{  1.0f,  1.0f }, { 0.0f, 0.0f, 0.0f }, { 1.0f, 0.0f }}, // Top-right: tex (1, 0)
-            {{ -1.0f,  1.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f }}  // Top-left: tex (0, 0)
-        };
-
+        Mesh flippedQuadMesh = Primitives::CreateQuadFlippedUV();
         VertexArray flippedQuadVAO;
-        VertexBuffer flippedQuadVBO(flippedQuadVertices, sizeof(flippedQuadVertices));
-        IndexBuffer flippedQuadIBO(quadIndices, 6);
+        VertexBuffer flippedQuadVBO(flippedQuadMesh.vertices.data(), flippedQuadMesh.vertices.size() * sizeof(Vertex));
+        IndexBuffer flippedQuadIBO(flippedQuadMesh.indices.data(), static_cast<uint32_t>(flippedQuadMesh.indices.size()));
         flippedQuadVAO.Bind();
         flippedQuadVAO.AddVertexBuffer(flippedQuadVBO);
         flippedQuadVAO.SetIndexBuffer(flippedQuadIBO);
@@ -165,37 +153,46 @@ int main(void)
         textureShader.Bind();
         int texLoc = glGetUniformLocation(textureShader.GetID(), "u_Texture");
 
-        uint32_t prevTriangleWidth = 0;
-        uint32_t prevTriangleHeight = 0;
+        uint32_t prevCubeWidth = 0;
+        uint32_t prevCubeHeight = 0;
         constexpr float RESOLUTION_SCALE = 2.0f;
 
         while (!glfwWindowShouldClose(window))
         {
-            const ComponentSlot* triangleSlot = ultralight.GetComponentSlot("triangle");
-            if (triangleSlot && triangleSlot->visible)
+            float currentTime = static_cast<float>(glfwGetTime());
+            
+            const ComponentSlot* cubeSlot = ultralight.GetComponentSlot("cube");
+            if (cubeSlot && cubeSlot->visible)
             {
-                uint32_t targetWidth = static_cast<uint32_t>(triangleSlot->width * RESOLUTION_SCALE);
-                uint32_t targetHeight = static_cast<uint32_t>(triangleSlot->height * RESOLUTION_SCALE);
+                uint32_t targetWidth = static_cast<uint32_t>(cubeSlot->width * RESOLUTION_SCALE);
+                uint32_t targetHeight = static_cast<uint32_t>(cubeSlot->height * RESOLUTION_SCALE);
                 
                 if (targetWidth < 1)
                     targetWidth = 1;
                 if (targetHeight < 1)
                     targetHeight = 1;
                 
-                if (targetWidth != prevTriangleWidth || targetHeight != prevTriangleHeight)
+                if (targetWidth != prevCubeWidth || targetHeight != prevCubeHeight)
                 {
-                    triangleComponent.Resize(targetWidth, targetHeight);
-                    prevTriangleWidth = targetWidth;
-                    prevTriangleHeight = targetHeight;
+                    cubeComponent.Resize(targetWidth, targetHeight);
+                    prevCubeWidth = targetWidth;
+                    prevCubeHeight = targetHeight;
                 }
             }
-            else if (prevTriangleWidth > 0 || prevTriangleHeight > 0)
+            else if (prevCubeWidth > 0 || prevCubeHeight > 0)
             {
-                prevTriangleWidth = 0;
-                prevTriangleHeight = 0;
+                prevCubeWidth = 0;
+                prevCubeHeight = 0;
             }
 
-            triangleComponent.Render();
+            float aspect = static_cast<float>(cubeComponent.GetWidth()) / static_cast<float>(cubeComponent.GetHeight());
+            glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 100.0f);
+            glm::mat4 view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -3.0f));
+            glm::mat4 model = glm::rotate(glm::mat4(1.0f), currentTime, glm::vec3(0.5f, 1.0f, 0.0f));
+            glm::mat4 mvp = projection * view * model;
+            cubeComponent.SetMVP(glm::value_ptr(mvp));
+
+            cubeComponent.Render();
 
             ultralight.Update();
             ultralight.Render();
@@ -220,6 +217,7 @@ int main(void)
 
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
             glViewport(0, 0, currentWidth, currentHeight);
+            glDisable(GL_DEPTH_TEST);
             glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT);
 
@@ -231,15 +229,15 @@ int main(void)
             flippedQuadVAO.Bind();
             glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
 
-            if (triangleSlot && triangleSlot->visible)
+            if (cubeSlot && cubeSlot->visible)
             {
-                int x = static_cast<int>(triangleSlot->x);
-                int y = static_cast<int>(currentHeight - triangleSlot->y - triangleSlot->height);
-                int w = static_cast<int>(triangleSlot->width);
-                int h = static_cast<int>(triangleSlot->height);
+                int x = static_cast<int>(cubeSlot->x);
+                int y = static_cast<int>(currentHeight - cubeSlot->y - cubeSlot->height);
+                int w = static_cast<int>(cubeSlot->width);
+                int h = static_cast<int>(cubeSlot->height);
 
                 glViewport(x, y, w, h);
-                triangleComponent.BindTexture(0);
+                cubeComponent.BindTexture(0);
                 if (texLoc != -1)
                     glUniform1i(texLoc, 0);
                 screenQuadVAO.Bind();

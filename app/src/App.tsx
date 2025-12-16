@@ -58,7 +58,7 @@ export default function App() {
         </Button>
       </div>
       <div className="flex-1">
-        <NativeComponent name="triangle" className="h-full w-full" />
+        <NativeComponent name="cube" className="h-full w-full" />
       </div>
     </div>
   );

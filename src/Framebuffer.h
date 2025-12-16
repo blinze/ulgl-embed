@@ -8,6 +8,7 @@ class Framebuffer
 private:
     uint32_t m_RendererID;
     uint32_t m_ColorAttachment;
+    uint32_t m_DepthAttachment;
     uint32_t m_Width;
     uint32_t m_Height;
 

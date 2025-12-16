@@ -13,6 +13,8 @@ Component::Component(uint32_t width, uint32_t height)
     , m_IndexCount(0)
     , m_RenderCallback(nullptr)
     , m_ClearColor{0.1f, 0.1f, 0.1f, 1.0f}
+    , m_MVP{1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1}
+    , m_DepthTestEnabled(false)
 {
 }
 
@@ -47,20 +49,44 @@ void Component::SetClearColor(float r, float g, float b, float a)
     m_ClearColor[3] = a;
 }
 
+void Component::SetMVP(const float* mvp)
+{
+    for (int i = 0; i < 16; i++)
+        m_MVP[i] = mvp[i];
+}
+
 void Component::Render()
 {
     m_Framebuffer->Bind();
     
     glClearColor(m_ClearColor[0], m_ClearColor[1], m_ClearColor[2], m_ClearColor[3]);
-    glClear(GL_COLOR_BUFFER_BIT);
-    glDisable(GL_DEPTH_TEST);
+    
+    if (m_DepthTestEnabled)
+    {
+        glEnable(GL_DEPTH_TEST);
+        glDepthFunc(GL_LESS);
+        glDepthMask(GL_TRUE);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    }
+    else
+    {
+        glDisable(GL_DEPTH_TEST);
+        glClear(GL_COLOR_BUFFER_BIT);
+    }
 
     if (m_RenderCallback)
         m_RenderCallback();
-    else if (m_VAO && m_Shader && m_IndexCount > 0)
+    else if (m_VAO && m_VBO && m_IBO && m_Shader && m_IndexCount > 0)
     {
         m_Shader->Bind();
+        int mvpLoc = glGetUniformLocation(m_Shader->GetID(), "u_MVP");
+        if (mvpLoc != -1)
+            glUniformMatrix4fv(mvpLoc, 1, GL_FALSE, m_MVP);
+        
         m_VAO->Bind();
+        m_VBO->Bind();
+        m_IBO->Bind();
+        
         glDrawElements(GL_TRIANGLES, m_IndexCount, GL_UNSIGNED_INT, nullptr);
     }
 

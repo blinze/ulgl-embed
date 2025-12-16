@@ -27,6 +27,8 @@ private:
     uint32_t m_IndexCount;
     RenderCallback m_RenderCallback;
     float m_ClearColor[4];
+    float m_MVP[16];
+    bool m_DepthTestEnabled;
 public:
     Component(uint32_t width, uint32_t height);
     ~Component() = default;
@@ -42,6 +44,8 @@ public:
     void SetShader(const std::string& vertexPath, const std::string& fragmentPath);
     void SetRenderCallback(RenderCallback callback) { m_RenderCallback = std::move(callback); }
     void SetClearColor(float r, float g, float b, float a = 1.0f);
+    void SetMVP(const float* mvp);
+    void EnableDepthTest(bool enable) { m_DepthTestEnabled = enable; }
 
     void Render();
     void BindTexture(uint32_t slot = 0) const;
