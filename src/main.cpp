@@ -29,9 +29,12 @@
 #include "Component.h"
 #include "UltralightRenderer.h"
 #include "InputEvent.h"
+#include "JSBridge.h"
 
 static constexpr uint32_t INITIAL_WINDOW_WIDTH = 1280;
 static constexpr uint32_t INITIAL_WINDOW_HEIGHT = 720;
+
+static glm::vec3 g_CubeRotation = glm::vec3(0.0f);
 
 void CheckGLError(const char* location)
 {
@@ -134,6 +137,20 @@ int main(void)
             return -1;
         }
 
+        if (auto* bridge = ultralight.GetJSBridge())
+        {
+            bridge->Register("setCubeRotation", [](const JSArgs& args) -> JSValue {
+                auto x = JSBridge::GetArg<float>(args, 0);
+                auto y = JSBridge::GetArg<float>(args, 1);
+                auto z = JSBridge::GetArg<float>(args, 2);
+                
+                if (x && y && z)
+                    g_CubeRotation = glm::vec3(*x, *y, *z);
+                
+                return nullptr;
+            });
+        }
+
         inputHandler.Initialize(window, &ultralight);
         inputHandler.SetViewportRegion(0, 0, windowWidth, windowHeight);
         
@@ -159,8 +176,6 @@ int main(void)
 
         while (!glfwWindowShouldClose(window))
         {
-            float currentTime = static_cast<float>(glfwGetTime());
-            
             const ComponentSlot* cubeSlot = ultralight.GetComponentSlot("cube");
             if (cubeSlot && cubeSlot->visible)
             {
@@ -185,10 +200,14 @@ int main(void)
                 prevCubeHeight = 0;
             }
 
+            // Build MVP matrix with rotation from UI (degrees to radians)
             float aspect = static_cast<float>(cubeComponent.GetWidth()) / static_cast<float>(cubeComponent.GetHeight());
             glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 100.0f);
             glm::mat4 view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -3.0f));
-            glm::mat4 model = glm::rotate(glm::mat4(1.0f), currentTime, glm::vec3(0.5f, 1.0f, 0.0f));
+            glm::mat4 model = glm::mat4(1.0f);
+            model = glm::rotate(model, glm::radians(g_CubeRotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
+            model = glm::rotate(model, glm::radians(g_CubeRotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
+            model = glm::rotate(model, glm::radians(g_CubeRotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
             glm::mat4 mvp = projection * view * model;
             cubeComponent.SetMVP(glm::value_ptr(mvp));
 

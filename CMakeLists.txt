@@ -78,6 +78,7 @@ if(ULTRALIGHT_FOUND)
     target_sources(${PROJECT_NAME} PRIVATE
         src/UltralightRenderer.cpp
         src/InputEvent.cpp
+        src/JSBridge.cpp
     )
 endif()
 

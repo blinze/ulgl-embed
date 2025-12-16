@@ -1,4 +1,5 @@
 #include "UltralightRenderer.h"
+#include "JSBridge.h"
 #include <JavaScriptCore/JavaScript.h>
 #include <iostream>
 #include <filesystem>
@@ -10,31 +11,6 @@
 #endif
 
 static UltralightRenderer* g_CurrentRenderer = nullptr;
-JSValueRef JS_SetComponentSlot(JSContextRef ctx, JSObjectRef function,
-                                JSObjectRef thisObject, size_t argumentCount,
-                                const JSValueRef arguments[], JSValueRef* exception)
-{
-    if (!g_CurrentRenderer || argumentCount < 6)
-        return JSValueMakeUndefined(ctx);
-
-    JSStringRef nameStr = JSValueToStringCopy(ctx, arguments[0], nullptr);
-    size_t maxSize = JSStringGetMaximumUTF8CStringSize(nameStr);
-    char* nameBuffer = new char[maxSize];
-    JSStringGetUTF8CString(nameStr, nameBuffer, maxSize);
-    std::string name(nameBuffer);
-    delete[] nameBuffer;
-    JSStringRelease(nameStr);
-
-    float x = static_cast<float>(JSValueToNumber(ctx, arguments[1], nullptr));
-    float y = static_cast<float>(JSValueToNumber(ctx, arguments[2], nullptr));
-    float width = static_cast<float>(JSValueToNumber(ctx, arguments[3], nullptr));
-    float height = static_cast<float>(JSValueToNumber(ctx, arguments[4], nullptr));
-    bool visible = JSValueToBoolean(ctx, arguments[5]);
-
-    g_CurrentRenderer->SetComponentSlot(name, x, y, width, height, visible);
-    
-    return JSValueMakeUndefined(ctx);
-}
 
 UltralightRenderer::UltralightRenderer()
     : m_Initialized(false)
@@ -235,6 +211,9 @@ bool UltralightRenderer::Initialize(uint32_t width, uint32_t height)
         m_Initialized = true;
         g_CurrentRenderer = this;
         
+        // Setup JavaScript bridge
+        SetupJSBridge();
+        
         std::cout << "  Ultralight initialization complete!" << std::endl;
         return true;
     }
@@ -342,29 +321,34 @@ void UltralightRenderer::ForceRepaint()
     m_View->set_needs_paint(true);
 }
 
+void UltralightRenderer::SetupJSBridge()
+{
+    m_JSBridge = std::make_unique<JSBridge>();
+    
+    m_JSBridge->Register("setComponentSlot", [this](const JSArgs& args) -> JSValue {
+        auto name = JSBridge::GetArg<std::string>(args, 0);
+        auto x = JSBridge::GetArg<float>(args, 1);
+        auto y = JSBridge::GetArg<float>(args, 2);
+        auto width = JSBridge::GetArg<float>(args, 3);
+        auto height = JSBridge::GetArg<float>(args, 4);
+        auto visible = JSBridge::GetArg<bool>(args, 5);
+        
+        if (name && x && y && width && height && visible)
+            SetComponentSlot(*name, *x, *y, *width, *height, *visible);
+        
+        return nullptr;
+    });
+}
+
 void UltralightRenderer::BindJavaScriptAPI()
 {
-    if (!m_Initialized || !m_View)
+    if (!m_Initialized || !m_View || !m_JSBridge)
         return;
 
     auto scoped_context = m_View->LockJSContext();
     JSContextRef ctx = (*scoped_context);
-    JSObjectRef globalObj = JSContextGetGlobalObject(ctx);
-
-    JSClassDefinition classDef = kJSClassDefinitionEmpty;
-    classDef.className = "Native";
-    JSClassRef classRef = JSClassCreate(&classDef);
-    JSObjectRef nativeObj = JSObjectMake(ctx, classRef, nullptr);
-    JSClassRelease(classRef);
-
-    JSStringRef funcName = JSStringCreateWithUTF8CString("setComponentSlot");
-    JSObjectRef funcObj = JSObjectMakeFunctionWithCallback(ctx, funcName, JS_SetComponentSlot);
-    JSObjectSetProperty(ctx, nativeObj, funcName, funcObj, kJSPropertyAttributeNone, nullptr);
-    JSStringRelease(funcName);
-
-    JSStringRef nativeName = JSStringCreateWithUTF8CString("native");
-    JSObjectSetProperty(ctx, globalObj, nativeName, nativeObj, kJSPropertyAttributeNone, nullptr);
-    JSStringRelease(nativeName);
+    
+    m_JSBridge->BindToContext(ctx);
 }
 
 void UltralightRenderer::SetComponentSlot(const std::string& name, float x, float y, 

@@ -1,19 +1,5 @@
 import React, { useRef, useEffect, useCallback } from "react";
-
-declare global {
-  interface Window {
-    native?: {
-      setComponentSlot: (
-        name: string,
-        x: number,
-        y: number,
-        width: number,
-        height: number,
-        visible: boolean
-      ) => void;
-    };
-  }
-}
+import "./types.d.ts";
 
 interface NativeComponentProps {
   name: string;
@@ -65,3 +51,4 @@ export default function NativeComponent({ name, className, style, children }: Na
     </div>
   );
 }
+

@@ -7,6 +7,9 @@
 #include <string>
 #include <functional>
 #include <unordered_map>
+#include <memory>
+
+class JSBridge;
 
 struct ComponentSlot
 {
@@ -16,6 +19,7 @@ struct ComponentSlot
     float height = 0;
     bool visible = false;
 };
+
 
 class UltralightLoadListener : public ultralight::LoadListener
 {
@@ -49,9 +53,14 @@ private:
     UltralightLoadListener m_LoadListener;
     UltralightViewListener m_ViewListener;
     std::unordered_map<std::string, ComponentSlot> m_ComponentSlots;
+    std::unique_ptr<JSBridge> m_JSBridge;
+
+    void SetupJSBridge();
 
 public:
     void BindJavaScriptAPI();
+    
+    JSBridge* GetJSBridge() const { return m_JSBridge.get(); }
     UltralightRenderer();
     ~UltralightRenderer();
 
